@@ -1,0 +1,63 @@
+[workspace]
+resolver = "2"
+members = [
+    "packages/core",
+    # MCP server and CLI are planned. They will be added once the
+    # engine in `quilt-core` is complete. Until then, only `core`
+    # builds. See the README for status.
+    #
+    # "packages/mcp",
+    # "packages/cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["The Quilt Authors"]
+repository = "https://github.com/superinstance/quilt-rust"
+description = "A spreadsheet where every cell is a live, addressable capability. The grid is the runtime."
+
+[workspace.dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yml = "0.0.12"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# HTTP for API cells
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Expression evaluation
+rhai = { version = "1.20", features = ["sync", "serde"] }
+
+# MCP server (will be enabled once the engine lands)
+# rmcp = { version = "0.2", features = ["server", "transport-stdio", "macros"] }
+
+# CLI (will be enabled once the engine lands)
+# clap = { version = "4.5", features = ["derive"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Misc
+regex = "1.10"
+once_cell = "1.19"
+parking_lot = "0.12"
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+indexmap = { version = "2", features = ["serde"] }
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+lto = "thin"
