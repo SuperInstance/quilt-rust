@@ -29,6 +29,8 @@ parking_lot = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
 indexmap = { workspace = true }
+crossbeam-channel = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

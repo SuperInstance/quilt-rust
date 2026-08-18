@@ -1,0 +1,18 @@
+[package]
+name = "quilt-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "MCP server for Quilt — exposes every cell as a tool, every sheet as a resource."
+
+[dependencies]
+quilt-core = { path = "../core" }
+
+rmcp = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }

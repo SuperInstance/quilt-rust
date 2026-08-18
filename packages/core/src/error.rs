@@ -26,8 +26,6 @@
 //! - `Error::CellNotFound` is the only "not found" variant; everything
 //!   else is a typed error with context.
 
-use std::fmt;
-
 use crate::types::CellId;
 
 /// Convenient alias for `Result<T, Error>`.
@@ -190,11 +188,5 @@ pub(crate) fn display_value(v: &serde_json::Value) -> String {
     match v {
         serde_json::Value::String(s) => format!("\"{s}\""),
         other => other.to_string(),
-    }
-}
-
-impl fmt::Display for &serde_json::Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", display_value(self))
     }
 }

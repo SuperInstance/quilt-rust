@@ -35,7 +35,21 @@ use crate::types::{Cell, CellStatus, CellValue, CallerContext};
 /// The `ctx` is unused — value cells are context-independent by
 /// definition. We accept the parameter anyway so the call site can
 /// dispatch uniformly.
+///
+/// If the cell's current value is `Ready` (i.e. it was set at runtime
+/// via `engine.set`), we return that value. Otherwise we fall back
+/// to the static value declared in the cell's definition.
 pub fn evaluate_value(cell: &Cell, _ctx: &CallerContext) -> CellValue {
+    // Prefer the runtime-updated value if it's Ready.
+    if cell.value.status == CellStatus::Ready {
+        return CellValue {
+            data: cell.value.data.clone(),
+            status: CellStatus::Ready,
+            computed_at: Some(crate::types::now_millis()),
+            error: None,
+            effects: Vec::new(),
+        };
+    }
     let data = cell.def.value.clone().unwrap_or(serde_json::Value::Null);
     CellValue {
         data,

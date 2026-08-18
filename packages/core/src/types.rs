@@ -591,6 +591,35 @@ pub struct CellDef {
     pub permissions: BTreeMap<String, Value>,
 }
 
+impl Default for CellDef {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            kind: crate::types::CellKind::Value,
+            description: None,
+            value: None,
+            expr: None,
+            endpoint: None,
+            method: None,
+            headers: std::collections::BTreeMap::new(),
+            code: None,
+            source: None,
+            rate: None,
+            watch: Vec::new(),
+            condition: None,
+            action: None,
+            rules: Vec::new(),
+            port: None,
+            direction: None,
+            unit: None,
+            input_type: None,
+            output_type: None,
+            deps: Vec::new(),
+            permissions: std::collections::BTreeMap::new(),
+        }
+    }
+}
+
 impl CellDef {
     /// Validate a `CellDef` against its kind. Returns a list of human-
     /// readable problems; empty list means OK.

@@ -1,0 +1,108 @@
+id: boat-autopilot
+title: "Voice-Controlled Autopilot"
+description: "A classical/jazz hybrid: PID controller with LLM-assisted voice commands"
+version: 0.1.0
+
+axes:
+  rows: { name: boat }
+  cols: { name: capability }
+
+# The compass — a sensor reading the boat's current heading.
+# In a real deployment, source would be 'nmea:/dev/ttyUSB0'.
+# Here we use a simulated value that you can set via the engine.
+cells:
+  - id: compass.heading
+    kind: sensor
+    source: simulated
+    rate: 100
+    unit: degrees
+    description: "Current boat heading from the NMEA compass"
+
+  - id: desired.heading
+    kind: value
+    value: 180
+    unit: degrees
+    description: "Where we want to go"
+
+  - id: heading.error
+    kind: formula
+    expr: "=((desired.heading - compass.heading + 540) % 360) - 180"
+    unit: degrees
+    description: "Signed shortest-path error (positive = turn right)"
+
+  - id: rudder.gain
+    kind: value
+    value: 0.5
+    description: "Proportional gain for the rudder"
+
+  - id: rudder.command
+    kind: program
+    code: |
+      const e = await runtime.get('heading.error');
+      const g = await runtime.get('rudder.gain');
+      const cmd = clamp((e.data || 0) * (g.data || 0.5), -30, 30);
+      return { angle: cmd, computedAt: Date.now() };
+    description: "PID-style proportional controller — classical cell"
+
+  - id: rudder.position
+    kind: io
+    direction: out
+    port: actuator:rudder
+    description: "Physical rudder actuator"
+
+  - id: alert.off_course
+    kind: listener
+    watch: [heading.error]
+    condition: "caller.metadata && Math.abs(caller.metadata.current) > 30"
+    action: log.off_course
+    description: "Fires when the heading error exceeds 30°"
+
+  - id: log.off_course
+    kind: program
+    code: |
+      const e = await runtime.get('heading.error');
+      return {
+        severity: 'warn',
+        message: `Off course by ${e.data}°`,
+        timestamp: Date.now(),
+      };
+    description: "Logs an off-course event"
+
+  - id: voice.intent
+    kind: value
+    value: "set heading to 270"
+    description: "Last voice command (set by the voice adapter)"
+
+  - id: voice.parser
+    kind: router
+    description: "Routes voice commands — could be a small regex or an LLM"
+    rules:
+      - when: 'caller.row === "boat-1" && /turn left/.test(caller.metadata?.text || "")'
+        route:
+          cell: voice.turn_left
+
+  - id: voice.turn_left
+    kind: program
+    code: |
+      return { action: 'turn_left', degrees: 10 };
+    description: "Turn left 10°"
+
+  - id: voice.turn_right
+    kind: program
+    code: |
+      return { action: 'turn_right', degrees: 10 };
+    description: "Turn right 10°"
+
+  - id: model.router
+    kind: router
+    description: "Which model to use based on caller's context"
+    rules:
+      - when: 'caller.row === "boat-1"'
+        route:
+          model: "gpt-4o-mini"
+      - when: 'caller.row === "boat-2"'
+        route:
+          model: "gpt-4o"
+      - when: 'caller.identity && caller.identity.tags && caller.identity.tags.includes("premium")'
+        route:
+          model: "gpt-4o"

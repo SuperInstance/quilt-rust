@@ -1,0 +1,23 @@
+[package]
+name = "quilt-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Command-line interface for Quilt — init, run, serve --mcp, get, set, inspect, test."
+
+[dependencies]
+quilt-core = { path = "../core" }
+quilt-mcp = { path = "../mcp" }
+
+clap = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yml = { workspace = true }
+anyhow = { workspace = true }
+
+[[bin]]
+name = "quilt"
+path = "src/main.rs"

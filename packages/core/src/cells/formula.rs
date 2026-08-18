@@ -112,11 +112,11 @@ impl FormulaEngine {
 
         // Build the `caller` object.
         let mut caller = Map::new();
-        caller.insert("row".into(), json_to_dynamic(ctx.row.clone()));
-        caller.insert("column".into(), json_to_dynamic(ctx.column.clone()));
+        caller.insert("row".into(), json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)));
+        caller.insert("column".into(), json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)));
         caller.insert(
             "sheet".into(),
-            json_to_dynamic(ctx.sheet.clone().map(Value::String)),
+            json_to_dynamic(ctx.sheet.clone().map(Value::String).unwrap_or(Value::Null)),
         );
         if let Some(identity) = &ctx.identity {
             let mut id_map = Map::new();
@@ -130,7 +130,7 @@ impl FormulaEngine {
         }
         let mut meta = Map::new();
         for (k, v) in &ctx.metadata {
-            meta.insert(k.clone().into(), json_to_dynamic(Some(v.clone())));
+            meta.insert(k.clone().into(), json_to_dynamic(v.clone()));
         }
         caller.insert("metadata".into(), meta.into());
         scope.push_dynamic("caller", caller.into());
@@ -144,7 +144,7 @@ impl FormulaEngine {
 
         // Run the AST.
         let result = engine
-            .eval_ast::<rhai::Dynamic>(&self.ast, &mut scope)
+            .eval_ast_with_scope::<rhai::Dynamic>(&mut scope, &*self.ast)
             .map_err(|e| Error::ScriptError {
                 cell: "<formula>".into(),
                 message: e.to_string(),
@@ -208,19 +208,21 @@ fn register_helpers(engine: &mut Engine) {
     let _ = engine;
 }
 
-fn abs_fn(x: rhai::Dynamic) -> rhai::Result<rhai::Dynamic> {
-    let n = x
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+fn abs_fn(x: rhai::Dynamic) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
+    let n = match x.as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
     Ok((n.abs()).into())
 }
 
-fn min_fn(args: rhai::Array) -> rhai::Result<rhai::Dynamic> {
+fn min_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     let mut best = f64::INFINITY;
     for a in args {
-        let n = a
-            .as_float()
-            .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+        let n = match a.as_float() {
+            Ok(n) => n,
+            Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        };
         if n < best {
             best = n;
         }
@@ -228,12 +230,13 @@ fn min_fn(args: rhai::Array) -> rhai::Result<rhai::Dynamic> {
     Ok(best.into())
 }
 
-fn max_fn(args: rhai::Array) -> rhai::Result<rhai::Dynamic> {
+fn max_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     let mut best = f64::NEG_INFINITY;
     for a in args {
-        let n = a
-            .as_float()
-            .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+        let n = match a.as_float() {
+            Ok(n) => n,
+            Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        };
         if n > best {
             best = n;
         }
@@ -241,21 +244,25 @@ fn max_fn(args: rhai::Array) -> rhai::Result<rhai::Dynamic> {
     Ok(best.into())
 }
 
-fn clamp_fn(args: rhai::Array) -> rhai::Result<rhai::Dynamic> {
+fn clamp_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     if args.len() != 3 {
-        return Err(rhai::EvalAltResult::ErrorRuntime(
+        return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
             "clamp(n, lo, hi) takes three arguments".into(),
-        ));
+            rhai::Position::NONE,
+        )));
     }
-    let n = args[0]
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
-    let lo = args[1]
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
-    let hi = args[2]
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+    let n = match args[0].as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
+    let lo = match args[1].as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
+    let hi = match args[2].as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
     Ok(n.clamp(lo, hi).into())
 }
 

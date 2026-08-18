@@ -42,7 +42,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::error::{Error, Result};
-use crate::types::{now_millis, CellId};
+use crate::types::{now_millis, CallerContext, CellId};
 
 /// A builder for `CallerContext` that lets callers chain fields without
 /// having to clone the whole struct.
@@ -375,9 +375,9 @@ pub fn eval_when(expr: &str, ctx: &CallerContext) -> Result<bool> {
     // expressions; they only operate on `caller`.
 
     let mut caller = Map::new();
-    caller.insert("row".into(), json_to_dynamic(ctx.row.clone()));
-    caller.insert("column".into(), json_to_dynamic(ctx.column.clone()));
-    caller.insert("sheet".into(), json_to_dynamic(ctx.sheet.clone().map(Value::String)));
+    caller.insert("row".into(), json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)));
+    caller.insert("column".into(), json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)));
+    caller.insert("sheet".into(), json_to_dynamic(ctx.sheet.clone().map(Value::String).unwrap_or(Value::Null)));
     if let Some(identity) = &ctx.identity {
         let mut id_map = Map::new();
         id_map.insert("id".into(), identity.id.clone().into());
@@ -390,12 +390,12 @@ pub fn eval_when(expr: &str, ctx: &CallerContext) -> Result<bool> {
     }
     let mut meta_map = Map::new();
     for (k, v) in &ctx.metadata {
-        meta_map.insert(k.clone().into(), json_to_dynamic(Some(v.clone())));
+        meta_map.insert(k.clone().into(), json_to_dynamic(v.clone()));
     }
     caller.insert("metadata".into(), meta_map.into());
 
-    let scope = rhai::Scope::new();
-    match engine.eval_with_scope::<bool>(&scope, expr) {
+    let mut scope = rhai::Scope::new();
+    match engine.eval_with_scope::<bool>(&mut scope, expr) {
         Ok(b) => Ok(b),
         Err(_) => {
             // Try a "trick" expression: wrap in a comparison with `true` to
@@ -409,12 +409,12 @@ pub fn eval_when(expr: &str, ctx: &CallerContext) -> Result<bool> {
 /// Convert an `Option<serde_json::Value>` into a `rhai::Dynamic`. We
 /// keep this small: nulls become unit, numbers/bools/strings stay
 /// primitive, arrays/objects become rhai arrays/maps.
-fn json_to_dynamic(v: Option<Value>) -> rhai::Dynamic {
+fn json_to_dynamic(v: Value) -> rhai::Dynamic {
     use rhai::{Array, Map};
     match v {
-        None | Some(Value::Null) => rhai::Dynamic::UNIT,
-        Some(Value::Bool(b)) => b.into(),
-        Some(Value::Number(n)) => {
+        Value::Null => rhai::Dynamic::UNIT,
+        Value::Bool(b) => b.into(),
+        Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 i.into()
             } else if let Some(f) = n.as_f64() {
@@ -423,15 +423,15 @@ fn json_to_dynamic(v: Option<Value>) -> rhai::Dynamic {
                 rhai::Dynamic::UNIT
             }
         }
-        Some(Value::String(s)) => s.into(),
-        Some(Value::Array(items)) => {
+        Value::String(s) => s.into(),
+        Value::Array(items) => {
             let arr: Array = items.into_iter().map(json_to_dynamic).collect();
             arr.into()
         }
-        Some(Value::Object(map)) => {
+        Value::Object(map) => {
             let mut m = Map::new();
             for (k, v) in map {
-                m.insert(k.into(), json_to_dynamic(Some(v)));
+                m.insert(k.into(), json_to_dynamic(v));
             }
             m.into()
         }

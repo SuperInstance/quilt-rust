@@ -1,0 +1,129 @@
+id: agent-dashboard
+title: "Terminal Agent Mission Control"
+description: "A shared workspace for human and AI agents — tasks, status, outputs"
+version: 0.1.0
+
+# In this example, each ROW is a task. Each COLUMN is a capability.
+# The agent reads/writes cells; the human watches the same grid.
+
+cells:
+  # ---- Configuration ----
+  - id: config.agent_name
+    kind: value
+    value: "Claude Code"
+    description: "Which agent is running this"
+
+  - id: config.max_concurrent
+    kind: value
+    value: 3
+    description: "How many tasks to run in parallel"
+
+  # ---- Task queue ----
+  # Each task is a row in the conceptual grid. For the MVP we use
+  # separate cells per task; in production these would be generated
+  # from a database table.
+
+  - id: task.1.name
+    kind: value
+    value: "Write README"
+    description: "Task 1 name"
+
+  - id: task.1.status
+    kind: value
+    value: "pending"
+    description: "Task 1 status: pending | running | done | failed"
+
+  - id: task.1.output
+    kind: value
+    value: ""
+    description: "Task 1 output"
+
+  - id: task.1.duration_ms
+    kind: value
+    value: 0
+    description: "Task 1 duration in ms"
+
+  - id: task.2.name
+    kind: value
+    value: "Run tests"
+    description: "Task 2 name"
+
+  - id: task.2.status
+    kind: value
+    value: "pending"
+
+  - id: task.2.output
+    kind: value
+    value: ""
+
+  - id: task.2.duration_ms
+    kind: value
+    value: 0
+
+  - id: task.3.name
+    kind: value
+    value: "Deploy to staging"
+    description: "Task 3 name"
+
+  - id: task.3.status
+    kind: value
+    value: "pending"
+
+  - id: task.3.output
+    kind: value
+    value: ""
+
+  - id: task.3.duration_ms
+    kind: value
+    value: 0
+
+  # ---- Aggregates ----
+
+  - id: aggregate.pending_count
+    kind: program
+    code: |
+      let n = 0;
+      for (let i = 1; i <= 3; i++) {
+        const s = await runtime.get('task.' + i + '.status');
+        if (s.data === 'pending') n++;
+      }
+      return n;
+    description: "How many tasks are pending"
+
+  - id: aggregate.running_count
+    kind: program
+    code: |
+      let n = 0;
+      for (let i = 1; i <= 3; i++) {
+        const s = await runtime.get('task.' + i + '.status');
+        if (s.data === 'running') n++;
+      }
+      return n;
+    description: "How many tasks are running"
+
+  - id: aggregate.done_count
+    kind: program
+    code: |
+      let n = 0;
+      for (let i = 1; i <= 3; i++) {
+        const s = await runtime.get('task.' + i + '.status');
+        if (s.data === 'done') n++;
+      }
+      return n;
+    description: "How many tasks are done"
+
+  # ---- The router: who runs which task ----
+
+  - id: dispatcher
+    kind: router
+    description: "Decides which agent/model to use for each task"
+    rules:
+      - when: 'caller.row === 1'  # task 1 — README writing
+        route:
+          model: "claude-sonnet-4-5"
+      - when: 'caller.row === 2'  # task 2 — tests
+        route:
+          model: "gpt-4o"
+      - when: 'caller.row === 3'  # task 3 — deploy
+        route:
+          model: "gpt-4o-mini"

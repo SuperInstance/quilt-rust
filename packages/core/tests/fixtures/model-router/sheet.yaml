@@ -1,0 +1,92 @@
+id: model-router
+title: "Caller-Aware Model Router"
+description: "Routes LLM calls to different models based on row, column, identity, and tags"
+version: 0.1.0
+
+# This is the "if caller.row > 10 use Model A" example. Three layers
+# of routing:
+#   - row > 10 → premium tier
+#   - column == "J" → use prompt from cell X
+#   - identity.tags contains "internal" → bypass cache
+
+cells:
+  # ---- Models (one cell per model, so they're swappable) ----
+
+  - id: models.fast
+    kind: api
+    endpoint: "model:gpt-4o-mini"
+    description: "The fast, cheap model"
+
+  - id: models.precise
+    kind: api
+    endpoint: "model:gpt-4o"
+    description: "The slow, smart model"
+
+  - id: models.premium
+    kind: api
+    endpoint: "model:claude-opus-4"
+    description: "The very expensive, very smart model"
+
+  # ---- Prompts (also cells) ----
+
+  - id: prompts.system
+    kind: value
+    value: "You are a helpful assistant. Be concise."
+    description: "Default system prompt"
+
+  - id: prompts.premium
+    kind: value
+    value: "You are an expert. Take your time. Be thorough."
+    description: "System prompt for premium users"
+
+  - id: prompts.creative
+    kind: value
+    value: "You are a creative writer. Surprise and delight."
+    description: "System prompt for creative tier"
+
+  # ---- The router (the interesting part) ----
+
+  - id: router.model
+    kind: router
+    description: "Picks a model based on caller context"
+    rules:
+      # Row-based routing (tenants)
+      - when: 'caller.row > 100'
+        route: { cell: 'models.premium' }
+      - when: 'caller.row > 10'
+        route: { cell: 'models.precise' }
+      # Default for everything else
+      - when: 'caller.row <= 10'
+        route: { cell: 'models.fast' }
+
+  - id: router.prompt
+    kind: router
+    description: "Picks a system prompt based on caller context"
+    rules:
+      - when: 'caller.identity && caller.identity.tags && caller.identity.tags.includes("premium")'
+        route: { cell: 'prompts.premium' }
+      - when: 'caller.column === "creative"'
+        route: { cell: 'prompts.creative' }
+      - when: 'true'
+        route: { cell: 'prompts.system' }
+
+  # ---- A simple workflow: ask the model ----
+
+  - id: workflow.ask
+    kind: program
+    code: |
+      const input = (await runtime.get('workflow.user_input')).data || 'Hello!';
+      const modelCell = await runtime.call('router.model', input);
+      const promptCell = await runtime.call('router.prompt', input);
+      return {
+        input,
+        model: modelCell.data,
+        prompt: promptCell.data,
+        routedAt: Date.now(),
+      };
+    description: "A user-facing cell that goes through the routers"
+
+  - id: workflow.user_input
+    kind: value
+    value: "What's the meaning of life?"
+    description: "The user's input"

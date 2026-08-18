@@ -37,7 +37,6 @@ use std::sync::Arc;
 use rhai::{Array, Dynamic, Engine, Map, Scope};
 use serde_json::Value;
 
-use crate::cells::mod_call as _;
 use crate::error::{Error, Result};
 use crate::types::{now_millis, Cell, CellStatus, CellValue, CallerContext};
 
@@ -121,11 +120,11 @@ pub async fn evaluate_program(
 
     // Bind caller.
     let mut caller = Map::new();
-    caller.insert("row".into(), json_to_dynamic(ctx.row.clone()));
-    caller.insert("column".into(), json_to_dynamic(ctx.column.clone()));
+    caller.insert("row".into(), json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)));
+    caller.insert("column".into(), json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)));
     caller.insert(
         "sheet".into(),
-        json_to_dynamic(ctx.sheet.clone().map(Value::String)),
+        json_to_dynamic(ctx.sheet.clone().map(Value::String).unwrap_or(Value::Null)),
     );
     if let Some(identity) = &ctx.identity {
         let mut id_map = Map::new();
@@ -139,19 +138,19 @@ pub async fn evaluate_program(
     }
     let mut meta = Map::new();
     for (k, v) in &ctx.metadata {
-        meta.insert(k.clone().into(), json_to_dynamic(Some(v.clone())));
+        meta.insert(k.clone().into(), json_to_dynamic(v.clone()));
     }
     caller.insert("metadata".into(), meta.into());
     scope.push_dynamic("caller", caller.into());
 
     // Bind helpers.
-    scope.push("clamp", clamp_fn as fn(rhai::Array) -> rhai::Result<Dynamic>);
-    scope.push("abs", abs_fn as fn(Dynamic) -> rhai::Result<Dynamic>);
-    scope.push("min", min_fn as fn(rhai::Array) -> rhai::Result<Dynamic>);
-    scope.push("max", max_fn as fn(rhai::Array) -> rhai::Result<Dynamic>);
+    scope.push("clamp", clamp_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
+    scope.push("abs", abs_fn as fn(Dynamic) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
+    scope.push("min", min_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
+    scope.push("max", max_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
 
     // Run.
-    let result = match engine.eval_with_scope_async::<Dynamic>(&mut scope, &code).await {
+    let result = match engine.eval_with_scope::<Dynamic>(&mut scope, &code) {
         Ok(v) => v,
         Err(err) => {
             return CellValue::err_with_stack(
@@ -195,27 +194,29 @@ fn make_runtime_value(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> D
 }
 
 fn make_runtime_get(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dynamic {
-    Dynamic::from(move |id: String| -> rhai::Result<Dynamic> {
+    Dynamic::from(move |id: String| -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
         match runtime.get(&id, &ctx) {
             Ok(v) => Ok(cell_value_to_dynamic(v)),
-            Err(e) => Err(rhai::EvalAltResult::ErrorRuntime(
+            Err(e) => Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
                 format!("runtime.get failed: {e}").into(),
-            )),
+                rhai::Position::NONE,
+            ))),
         }
     })
 }
 
 fn make_runtime_set(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dynamic {
-    Dynamic::from(move |id: String, value: Dynamic| -> rhai::Result<()> {
+    Dynamic::from(move |id: String, value: Dynamic| -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
         let v = dynamic_to_json(value);
         runtime
             .set(&id, v, &ctx)
-            .map_err(|e| rhai::EvalAltResult::ErrorRuntime(format!("{e}").into()))
+            .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(format!("{e}").into(), rhai::Position::NONE)))
+            .map(|_| rhai::Dynamic::UNIT)
     })
 }
 
 fn make_runtime_call(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dynamic {
-    Dynamic::from(move |id: String, input: Dynamic| -> rhai::Result<Dynamic> {
+    Dynamic::from(move |id: String, input: Dynamic| -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
         let input_value = dynamic_to_json(input);
         let input_opt = if input_value.is_null() {
             None
@@ -224,17 +225,19 @@ fn make_runtime_call(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dy
         };
         match runtime.call(&id, input_opt, &ctx) {
             Ok(v) => Ok(cell_value_to_dynamic(v)),
-            Err(e) => Err(rhai::EvalAltResult::ErrorRuntime(
+            Err(e) => Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
                 format!("runtime.call failed: {e}").into(),
-            )),
+                rhai::Position::NONE,
+            ))),
         }
     })
 }
 
 fn make_runtime_list(runtime: Arc<dyn ProgramRuntime>) -> Dynamic {
-    Dynamic::from(move || -> rhai::Result<Array> {
+    Dynamic::from(move || -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
         let ids = runtime.list();
-        Ok(ids.into_iter().map(|s| s.into()).collect())
+        let arr: rhai::Array = ids.into_iter().map(|s| s.into()).collect();
+        Ok(rhai::Dynamic::from(arr))
     })
 }
 
@@ -263,37 +266,43 @@ fn cell_value_to_dynamic(v: CellValue) -> Dynamic {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn clamp_fn(args: rhai::Array) -> rhai::Result<Dynamic> {
+fn clamp_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     if args.len() != 3 {
-        return Err(rhai::EvalAltResult::ErrorRuntime(
+        return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
             "clamp(n, lo, hi) takes three arguments".into(),
-        ));
+            rhai::Position::NONE,
+        )));
     }
-    let n = args[0]
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
-    let lo = args[1]
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
-    let hi = args[2]
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+    let n = match args[0].as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
+    let lo = match args[1].as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
+    let hi = match args[2].as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
     Ok(n.clamp(lo, hi).into())
 }
 
-fn abs_fn(x: Dynamic) -> rhai::Result<Dynamic> {
-    let n = x
-        .as_float()
-        .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+fn abs_fn(x: Dynamic) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
+    let n = match x.as_float() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+    };
     Ok(n.abs().into())
 }
 
-fn min_fn(args: rhai::Array) -> rhai::Result<Dynamic> {
+fn min_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     let mut best = f64::INFINITY;
     for a in args {
-        let n = a
-            .as_float()
-            .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+        let n = match a.as_float() {
+            Ok(n) => n,
+            Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        };
         if n < best {
             best = n;
         }
@@ -301,12 +310,13 @@ fn min_fn(args: rhai::Array) -> rhai::Result<Dynamic> {
     Ok(best.into())
 }
 
-fn max_fn(args: rhai::Array) -> rhai::Result<Dynamic> {
+fn max_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     let mut best = f64::NEG_INFINITY;
     for a in args {
-        let n = a
-            .as_float()
-            .map_err(|e| rhai::EvalAltResult::ErrorRuntime(e.to_string().into()))?;
+        let n = match a.as_float() {
+            Ok(n) => n,
+            Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        };
         if n > best {
             best = n;
         }
@@ -377,12 +387,6 @@ fn dynamic_to_json(d: Dynamic) -> Value {
     }
     Value::Null
 }
-
-// `mod_call` is here to make the file resilient to ordering changes in
-// the parent module. It's a no-op that lets us refer to
-// `crate::cells::mod_call` from a use statement.
-#[doc(hidden)]
-pub fn mod_call() {}
 
 #[cfg(test)]
 mod tests {

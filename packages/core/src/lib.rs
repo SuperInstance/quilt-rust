@@ -57,24 +57,21 @@
 
 pub mod cells;
 pub mod context;
+pub mod engine;
 pub mod error;
+pub mod parser;
 pub mod types;
 
 // Re-exports for convenience. Most users only need these.
 pub use crate::context::{
-    context_key, empty_context, eval_when, extend_context, CallerContext, Identity,
+    context_key, empty_context, eval_when, extend_context, Identity,
 };
+pub use crate::types::CallerContext;
+pub use crate::engine::{EngineOptions, QuiltEngine, SubscriptionEvent, SubscriptionHandle};
 pub use crate::error::{Error, Result};
+pub use crate::parser::{parse_sheet, serialize_sheet, validate_sheet};
 pub use crate::types::{
-    now_millis, Cell, CellDef, CellError, CellId, CellKind, CellRef, CellStatus, CellValue,
-    Direction, Effect, EvaluationTrace, RouterRule, SheetDef, Subscription, SubscriptionId,
+    Cell, CellDef, CellError, CellId, CellKind, CellRef, CellStatus, CellValue,
+    Direction, Effect, EvaluationTrace, RouteTarget, RouterRule, SheetDef, Subscription,
+    SubscriptionId,
 };
-
-// Future modules (commented out until implemented):
-//
-// pub mod engine;     // 🚧 The QuiltEngine — see status above.
-// pub mod parser;     // 🚧 YAML loader.
-// pub mod scheduler;  // ❌ Async evaluation queue.
-//
-// pub use crate::engine::{EngineOptions, QuiltEngine};
-// pub use crate::parser::{parse_sheet, serialize_sheet, validate_sheet};

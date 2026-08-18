@@ -1,0 +1,86 @@
+id: sensor-anomaly
+title: "Self-Tuning Anomaly Detector"
+description: "Local statistical loop + escalation to model — fewer false positives over time"
+version: 0.1.0
+
+# The "surprise loop" pattern:
+#   sensor cell  →  rolling stats  →  z-score  →  if surprising, call model
+# Over time, the system learns what's "normal" and only escalates
+# true anomalies to the (expensive) model.
+
+cells:
+  # ---- Input: a simulated temperature sensor ----
+
+  - id: sensor.temp
+    kind: sensor
+    source: simulated
+    rate: 100
+    unit: celsius
+    description: "Temperature reading (simulated)"
+
+  # ---- Rolling statistics (classical, local) ----
+
+  - id: rolling.window
+    kind: value
+    value: 60
+    description: "Window size in samples"
+
+  - id: rolling.mean
+    kind: program
+    description: "Mean of the last N samples (classical loop)"
+    code: |
+      // In a real impl this would maintain a buffer. For the demo,
+      // we just track the running mean.
+      const cur = (await runtime.get('rolling.mean')).data;
+      const x = (await runtime.get('sensor.temp')).data;
+      const n = (await runtime.get('rolling.count')).data || 0;
+      const mean = (cur || 0);
+      return mean * 0.99 + (x || 0) * 0.01;
+
+  - id: rolling.count
+    kind: value
+    value: 0
+    description: "How many samples we've seen"
+
+  # ---- Surprise detection (classical) ----
+
+  - id: surprise.z_score
+    kind: formula
+    expr: "=abs(sensor.temp - rolling.mean) / 5"  # assume stddev of 5
+    description: "How many standard deviations from the mean"
+
+  - id: surprise.threshold
+    kind: value
+    value: 2.5
+    description: "Above this z-score, escalate to the model"
+
+  - id: surprise.should_escalate
+    kind: formula
+    expr: "=surprise.z_score > surprise.threshold"
+    description: "True if we should call the model"
+
+  # ---- The model (jazz — only called on surprise) ----
+
+  - id: model.analyzer
+    kind: api
+    endpoint: "model:claude-sonnet-4-5"
+    description: "The expensive model — only called on anomalies"
+
+  # ---- Output ----
+
+  - id: alert
+    kind: program
+    description: "Triggers when surprise.should_escalate is true"
+    code: |
+      const x = (await runtime.get('sensor.temp')).data;
+      const z = (await runtime.get('surprise.z_score')).data;
+      return {
+        severity: z > 4 ? 'critical' : 'warning',
+        message: `Anomaly: temp=${x}°C, z=${z?.toFixed(2)}`,
+        timestamp: Date.now(),
+      };
+
+  - id: alert.listener
+    kind: listener
+    watch: [surprise.should_escalate]
+    description: "Fires when an anomaly is detected"
