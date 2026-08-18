@@ -171,10 +171,13 @@ pub type ApiExecutorRef = std::sync::Arc<dyn ApiExecutor>;
 ///
 /// The `executor` parameter lets tests substitute a stub. Pass `None`
 /// to use the default reqwest-based executor.
+///
+/// Takes the `Cell` by value so the returned future is `Send` and
+/// can be moved across thread boundaries by `drive_async`.
 pub async fn evaluate_api(
-    cell: &Cell,
-    ctx: &crate::types::CallerContext,
-    input: Option<&Value>,
+    cell: Cell,
+    ctx: crate::types::CallerContext,
+    input: Option<Value>,
     executor: Option<ApiExecutorRef>,
 ) -> CellValue {
     let started_at = now_millis();
@@ -229,7 +232,7 @@ pub async fn evaluate_api(
     }
 
     // Real HTTP call.
-    let url = substitute(&endpoint, ctx);
+    let url = substitute(&endpoint, &ctx);
     let method = cell.def.method.clone().unwrap_or_else(|| "GET".to_string());
     let mut headers = cell.def.headers.clone();
     if method != "GET" && method != "HEAD" && !headers.contains_key("content-type") {
@@ -370,8 +373,8 @@ mod tests {
         };
         let cell = api_cell("https://example.com/test");
         let v = evaluate_api(
-            &cell,
-            &crate::types::CallerContext::default(),
+            cell,
+            crate::types::CallerContext::default(),
             None,
             Some(Arc::new(stub)),
         )
@@ -384,8 +387,8 @@ mod tests {
     async fn model_pseudo_endpoint_returns_synthetic() {
         let cell = api_cell("model:gpt-4o");
         let v = evaluate_api(
-            &cell,
-            &crate::types::CallerContext::default(),
+            cell,
+            crate::types::CallerContext::default(),
             None,
             None,
         )
@@ -403,8 +406,8 @@ mod tests {
             ..Default::default()
         });
         let v = evaluate_api(
-            &cell,
-            &crate::types::CallerContext::default(),
+            cell,
+            crate::types::CallerContext::default(),
             None,
             None,
         )

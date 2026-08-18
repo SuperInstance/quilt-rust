@@ -47,22 +47,25 @@ use crate::cells::ProgramRuntime;
 use crate::error::Result;
 use crate::types::{now_millis, Cell, CallerContext, CellStatus, CellValue, RouteTarget};
 use serde_json::Value;
+use std::sync::Arc;
 
 /// Evaluate a router cell. The first matching rule wins.
+///
+/// Takes the `Cell` by value (not by reference) so the returned
+/// future is `Send` and can be moved across thread boundaries by
+/// `drive_async`. The cell is cheap to clone (small struct).
 pub async fn evaluate_router(
-    cell: &Cell,
-    ctx: &CallerContext,
+    cell: Cell,
+    ctx: CallerContext,
     input: Option<Value>,
-    runtime: &dyn ProgramRuntime,
+    runtime: Arc<dyn ProgramRuntime>,
 ) -> Result<CellValue> {
     let started_at = now_millis();
 
     for rule in &cell.def.rules {
-        if rule_matches(&rule.when, ctx, input.as_ref()) {
+        if rule_matches(&rule.when, &ctx, input.as_ref()) {
             return match &rule.route {
-                RouteTarget::CellId(id) => {
-                    runtime.call(id, input, ctx)
-                }
+                RouteTarget::CellId(id) => runtime.call(id, input, &ctx),
                 RouteTarget::Cell { cell: target, with } => {
                     // Build a merged context and delegate.
                     let mut new_ctx = ctx.clone();
@@ -228,7 +231,7 @@ mod tests {
             },
         ];
         let cell = make_router_cell(rules);
-        let result = evaluate_router(&cell, &CallerContext::default(), None, &StaticRuntime)
+        let result = evaluate_router(cell, CallerContext::default(), None, Arc::new(StaticRuntime))
             .await
             .unwrap();
         assert_eq!(result.data["called"], "a");
@@ -243,7 +246,7 @@ mod tests {
         let cell = make_router_cell(rules);
         let mut ctx = CallerContext::default();
         ctx.row = Some(json!("premium"));
-        let result = evaluate_router(&cell, &ctx, None, &StaticRuntime).await.unwrap();
+        let result = evaluate_router(cell, ctx, None, Arc::new(StaticRuntime)).await.unwrap();
         assert_eq!(result.data["called"], "expensive");
     }
 
@@ -255,9 +258,14 @@ mod tests {
         }];
         let cell = make_router_cell(rules);
         let input = json!({"hello": "world"});
-        let result = evaluate_router(&cell, &CallerContext::default(), Some(input.clone()), &StaticRuntime)
-            .await
-            .unwrap();
+        let result = evaluate_router(
+            cell,
+            CallerContext::default(),
+            Some(input.clone()),
+            Arc::new(StaticRuntime),
+        )
+        .await
+        .unwrap();
         assert_eq!(result.data, input);
         assert_eq!(result.status, CellStatus::Ready);
     }
@@ -269,7 +277,7 @@ mod tests {
             route: RouteTarget::Value { value: json!("fallback") },
         }];
         let cell = make_router_cell(rules);
-        let result = evaluate_router(&cell, &CallerContext::default(), None, &StaticRuntime)
+        let result = evaluate_router(cell, CallerContext::default(), None, Arc::new(StaticRuntime))
             .await
             .unwrap();
         assert_eq!(result.data, json!("fallback"));

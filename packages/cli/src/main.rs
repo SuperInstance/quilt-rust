@@ -17,6 +17,7 @@
 
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -181,9 +182,9 @@ async fn tui(file: &PathBuf) -> Result<()> {
 // Helpers
 // =============================================================================
 
-fn load_engine(file: &PathBuf) -> Result<QuiltEngine> {
+fn load_engine(file: &PathBuf) -> Result<Arc<QuiltEngine>> {
     let sheet = parse_sheet_file(file)?;
-    let engine = QuiltEngine::new(file.display().to_string());
+    let engine = QuiltEngine::new(file.display().to_string()).into_arc();
     engine.load_sheet(sheet)?;
     Ok(engine)
 }

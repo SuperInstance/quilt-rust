@@ -88,11 +88,13 @@ impl ProgramRuntime for NullRuntime {
     }
 }
 
-/// Evaluate a program cell.
+/// Evaluate a program cell. Takes the `Cell` by value so the
+/// returned future is `Send` and can be moved across thread
+/// boundaries by `drive_async`.
 pub async fn evaluate_program(
-    cell: &Cell,
-    ctx: &CallerContext,
-    input: Option<&Value>,
+    cell: Cell,
+    ctx: CallerContext,
+    input: Option<Value>,
     runtime: Arc<dyn ProgramRuntime>,
 ) -> CellValue {
     let started_at = now_millis();
@@ -168,7 +170,7 @@ pub async fn evaluate_program(
     });
 
     // Bind input.
-    scope.push_dynamic("input", json_to_dynamic(input.cloned().unwrap_or(Value::Null)));
+    scope.push_dynamic("input", json_to_dynamic(input.unwrap_or(Value::Null)));
 
     // Bind caller.
     let mut caller = Map::new();
@@ -397,8 +399,8 @@ mod tests {
     async fn simple_return() {
         let cell = program_cell("1 + 2");
         let v = evaluate_program(
-            &cell,
-            &CallerContext::default(),
+            cell,
+            CallerContext::default(),
             None,
             Arc::new(NullRuntime),
         )
@@ -411,8 +413,8 @@ mod tests {
     async fn returns_object() {
         let cell = program_cell("#{ action: \"turn_left\", degrees: 10 }");
         let v = evaluate_program(
-            &cell,
-            &CallerContext::default(),
+            cell,
+            CallerContext::default(),
             None,
             Arc::new(NullRuntime),
         )
@@ -427,7 +429,7 @@ mod tests {
         let cell = program_cell("caller.row");
         let mut ctx = CallerContext::default();
         ctx.row = Some(serde_json::json!(42));
-        let v = evaluate_program(&cell, &ctx, None, Arc::new(NullRuntime)).await;
+        let v = evaluate_program(cell, ctx, None, Arc::new(NullRuntime)).await;
         assert_eq!(v.status, CellStatus::Ready);
         assert_eq!(v.data, serde_json::json!(42));
     }
@@ -463,8 +465,8 @@ mod tests {
         });
         let cell = program_cell("let v = get(\"a\"); v.data");
         let v = evaluate_program(
-            &cell,
-            &CallerContext::default(),
+            cell,
+            CallerContext::default(),
             None,
             Arc::clone(&rt) as Arc<dyn ProgramRuntime>,
         )

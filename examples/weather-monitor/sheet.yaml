@@ -1,0 +1,135 @@
+id: weather-monitor
+title: "Reactive Weather Station"
+description: >
+  Real-time weather monitor that ingests three sensor streams
+  (temperature, humidity, pressure), derives a "feels like" heat
+  index via a formula cell, and fires a listener alert when
+  conditions become dangerous. Demonstrates sensor → formula →
+  listener reactive composition across multiple cell kinds.
+version: 0.2.0
+
+axes:
+  rows: { name: metric }
+  cols: { name: source }
+
+cells:
+  # -------------------------------------------------------------------------
+  # Sensors — three independent data sources.
+  # In production, `source` would be a real I/O URL (i2c:/dev/i2c-1,
+  # http://weather.api, etc.). For this example we use simulated
+  # values that you can override via the engine.
+  # -------------------------------------------------------------------------
+
+  - id: sensor.temperature
+    kind: sensor
+    source: simulated
+    rate: 1000
+    unit: celsius
+    description: "Ambient air temperature"
+    default: 22.0
+
+  - id: sensor.humidity
+    kind: sensor
+    source: simulated
+    rate: 1000
+    unit: percent
+    description: "Relative humidity (0-100)"
+    default: 55.0
+
+  - id: sensor.pressure
+    kind: sensor
+    source: simulated
+    rate: 1000
+    unit: hPa
+    description: "Barometric pressure"
+    default: 1013.25
+
+  # -------------------------------------------------------------------------
+  # Formulas — derived values that recompute whenever their inputs
+  # change. Note that formulas reference cells by bare id; the engine
+  # rewrites these to cells["..."] under the hood.
+  # -------------------------------------------------------------------------
+
+  - id: feels_like_c
+    kind: formula
+    expr: "=sensor.temperature - ((100 - sensor.humidity) / 5)"
+    unit: celsius
+    description: "Apparent temperature in still air"
+
+  - id: feels_like_f
+    kind: formula
+    expr: "=(feels_like_c * 9 / 5) + 32"
+    unit: fahrenheit
+    description: "Apparent temperature in imperial units"
+
+  - id: dew_point_c
+    kind: formula
+    expr: "=sensor.temperature - ((100 - sensor.humidity) / 5)"
+    unit: celsius
+    description: "Dew point — the temperature at which condensation forms"
+
+  - id: is_comfortable
+    kind: formula
+    expr: "=sensor.temperature >= 18 && sensor.temperature <= 26 && sensor.humidity >= 30 && sensor.humidity <= 60"
+    description: "Boolean: is the room within the comfort zone?"
+
+  - id: is_dangerous
+    kind: formula
+    expr: "=feels_like_c > 35 || sensor.temperature < 5"
+    description: "Boolean: conditions are dangerous (heat or cold)"
+
+  - id: pressure_trend
+    kind: formula
+    expr: '=if sensor.pressure > 1020 { "rising" } else if sensor.pressure < 1000 { "falling" } else { "steady" }'
+    description: "Qualitative barometric trend"
+
+  # -------------------------------------------------------------------------
+  # Listeners — react to changes in watched cells. The condition
+  # fires whenever a watched cell's value updates and the
+  # expression evaluates to truthy.
+  # -------------------------------------------------------------------------
+
+  - id: alert.dangerous
+    kind: listener
+    watch: [is_dangerous]
+    action: log.dangerous
+    description: "Fires when conditions are dangerous"
+
+  - id: log.dangerous
+    kind: io
+    direction: out
+    port: log:stderr
+    description: "Writes a warning to stderr when conditions are dangerous"
+
+  - id: alert.comfort_lost
+    kind: listener
+    watch: [is_comfortable]
+    condition: "=is_comfortable == false"
+    action: log.comfort_lost
+    description: "Fires when the comfort condition is no longer satisfied"
+
+  - id: log.comfort_lost
+    kind: io
+    direction: out
+    port: log:stderr
+    description: "Writes a notice when comfort zone is lost"
+
+  # -------------------------------------------------------------------------
+  # Router — a caller-aware view. Different consumers ask for
+  # different representations. The `caller.row` value is a column
+  # header (e.g. "imperial", "metric", "summary") that selects
+  # which cell to surface.
+  # -------------------------------------------------------------------------
+
+  - id: view.by_unit
+    kind: router
+    rules:
+      - when: "caller.row == 'metric'"
+        route: feels_like_c
+      - when: "caller.row == 'imperial'"
+        route: feels_like_f
+      - when: "caller.row == 'summary'"
+        route: is_dangerous
+      - when: "caller.row == 'comfort'"
+        route: is_comfortable
+    description: "Returns a different value depending on the caller's unit preference"

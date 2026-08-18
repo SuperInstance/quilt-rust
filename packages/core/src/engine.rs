@@ -313,7 +313,7 @@ impl QuiltEngine {
             }
             CellKind::Formula => {
                 // Build a snapshot of dep values.
-                let snapshot = self.build_formula_snapshot(&id_norm);
+                let snapshot = self.build_formula_snapshot(&id_norm, &full_ctx);
                 let cells = self.cells.read();
                 let cell = cells.get(&id_norm).expect("checked above");
                 let result = evaluate_formula(cell, &snapshot, &full_ctx);
@@ -401,23 +401,25 @@ impl QuiltEngine {
                     let cells = self.cells.read();
                     cells.get(&id_norm).cloned().expect("checked above")
                 };
-                Ok(drive_async(evaluate_api(&cell, &full_ctx, input.as_ref(), None)))
+                Ok(drive_async(evaluate_api(cell, full_ctx.clone(), input, None)))
             }
             CellKind::Program => {
-                let arc_engine = self.arc_self().expect("engine must be created via into_arc"); let runtime = Arc::new(EngineRuntime { engine: arc_engine });
+                let arc_engine = self.arc_self().expect("engine must be created via into_arc");
+                let runtime = Arc::new(EngineRuntime { engine: arc_engine });
                 let cell = {
                     let cells = self.cells.read();
                     cells.get(&id_norm).cloned().expect("checked above")
                 };
-                Ok(drive_async(evaluate_program(&cell, &full_ctx, input.as_ref(), runtime)))
+                Ok(drive_async(evaluate_program(cell, full_ctx.clone(), input, runtime)))
             }
             CellKind::Router => {
-                let arc_engine = self.arc_self().expect("engine must be created via into_arc"); let runtime = Arc::new(EngineRuntime { engine: arc_engine });
+                let arc_engine = self.arc_self().expect("engine must be created via into_arc");
+                let runtime = Arc::new(EngineRuntime { engine: arc_engine });
                 let cell = {
                     let cells = self.cells.read();
                     cells.get(&id_norm).cloned().expect("checked above")
                 };
-                drive_async(evaluate_router(&cell, &full_ctx, input.clone(), runtime.as_ref()))
+                drive_async(evaluate_router(cell, full_ctx.clone(), input, runtime))
             }
             CellKind::Sensor | CellKind::Io | CellKind::Listener => {
                 let cells = self.cells.read();
@@ -548,16 +550,65 @@ impl QuiltEngine {
     // =========================================================================
 
     /// Build a snapshot of dependency values for a formula.
-    fn build_formula_snapshot(&self, formula_id: &str) -> HashMap<CellId, Value> {
-        let cells = self.cells.read();
-        let cell = match cells.get(formula_id) {
-            Some(c) => c,
-            None => return HashMap::new(),
+    fn build_formula_snapshot(
+        &self,
+        formula_id: &str,
+        caller_ctx: &CallerContext,
+    ) -> HashMap<CellId, Value> {
+        // Collect the dependency list and kinds under a single
+        // read lock, then drop the lock before recursive calls.
+        let (deps, dep_kinds): (Vec<CellId>, Vec<(CellId, crate::types::CellKind)>) = {
+            let cells = self.cells.read();
+            let cell = match cells.get(formula_id) {
+                Some(c) => c,
+                None => return HashMap::new(),
+            };
+            let dep_kinds: Vec<(CellId, crate::types::CellKind)> = cell
+                .dependencies
+                .iter()
+                .filter_map(|d| cells.get(d).map(|c| (d.clone(), c.def.kind)))
+                .collect();
+            (cell.dependencies.iter().cloned().collect(), dep_kinds)
         };
-        cell.dependencies
-            .iter()
+
+        // Pre-evaluate formula dependencies. For each dep, we
+        // extend the caller's context with the dep's id (which
+        // is what `get` would do internally) so the result lands
+        // in the right cache slot for the snapshot lookup.
+        for (dep_id, kind) in &dep_kinds {
+            if *kind == crate::types::CellKind::Formula {
+                // The dep's evaluation will extend `caller_ctx`
+                // with `dep_id` as the caller. We pass the
+                // original context (not yet extended) and let
+                // the engine do the extension.
+                let _ = self.get(dep_id, caller_ctx.clone());
+            }
+        }
+
+        // Build the snapshot. For formula deps, look up the
+        // value in `context_cache` for the DEP's own extended
+        // context (i.e., the parent's context with `caller =
+        // dep_id`). For other deps, use the cell's most recent
+        // value (non-formula cells don't have per-context
+        // caches in the same way).
+        let cells = self.cells.read();
+        deps.iter()
             .filter_map(|dep_id| {
-                cells.get(dep_id).map(|dep| (dep_id.clone(), dep.value.data.clone()))
+                let dep = cells.get(dep_id)?;
+                let value = if dep.def.kind == crate::types::CellKind::Formula {
+                    // The dep was evaluated with the extended
+                    // context where caller = dep_id. Look it up
+                    // under that key.
+                    let dep_ctx = extend_context(caller_ctx, dep_id.clone(), None);
+                    let dep_key = context_key(&dep_ctx);
+                    dep.context_cache
+                        .get(&dep_key)
+                        .map(|v| v.data.clone())
+                        .unwrap_or(Value::Null)
+                } else {
+                    dep.value.data.clone()
+                };
+                Some((dep_id.clone(), value))
             })
             .collect()
     }
@@ -578,32 +629,46 @@ impl QuiltEngine {
         full_ctx: &CallerContext,
         input: Option<Value>,
     ) -> Result<CellValue> {
-        let cells = self.cells.read();
-        let cell = match cells.get(id) {
-            Some(c) => c,
-            None => {
-                return Ok(CellValue {
-                    data: Value::Null,
-                    status: CellStatus::Error,
-                    computed_at: Some(now_millis()),
-                    error: Some(crate::types::CellError {
-                        message: format!("no such cell: {}", id),
-                        stack: None,
-                    }),
-                    effects: Vec::new(),
-                });
+        // Clone the cell out of the lock and drop the lock BEFORE
+        // creating the async future. This is critical: the future
+        // holds owned data (Cell, CallerContext, Value) and is
+        // therefore `Send`, so `drive_async` can move it across
+        // thread boundaries even when we're inside a tokio runtime.
+        let cell = {
+            let cells = self.cells.read();
+            match cells.get(id) {
+                Some(c) => c.clone(),
+                None => {
+                    return Ok(CellValue {
+                        data: Value::Null,
+                        status: CellStatus::Error,
+                        computed_at: Some(now_millis()),
+                        error: Some(crate::types::CellError {
+                            message: format!("no such cell: {}", id),
+                            stack: None,
+                        }),
+                        effects: Vec::new(),
+                    });
+                }
             }
         };
+        let ctx = full_ctx.clone();
         let kind = cell.def.kind;
         match kind {
-            CellKind::Api => Ok(drive_async(evaluate_api(cell, full_ctx, input.as_ref(), None))),
+            CellKind::Api => Ok(drive_async(evaluate_api(cell, ctx, input, None))),
             CellKind::Program => {
-                let arc_engine = self.arc_self().expect("engine must be created via into_arc"); let runtime = Arc::new(EngineRuntime { engine: arc_engine });
-                Ok(drive_async(evaluate_program(cell, full_ctx, input.as_ref(), runtime)))
+                let arc_engine = self
+                    .arc_self()
+                    .expect("engine must be created via into_arc");
+                let runtime = Arc::new(EngineRuntime { engine: arc_engine });
+                Ok(drive_async(evaluate_program(cell, ctx, input, runtime)))
             }
             CellKind::Router => {
-                let arc_engine = self.arc_self().expect("engine must be created via into_arc"); let runtime = Arc::new(EngineRuntime { engine: arc_engine });
-                drive_async(evaluate_router(cell, full_ctx, input.clone(), runtime.as_ref()))
+                let arc_engine = self
+                    .arc_self()
+                    .expect("engine must be created via into_arc");
+                let runtime = Arc::new(EngineRuntime { engine: arc_engine });
+                drive_async(evaluate_router(cell, ctx, input, runtime))
             }
             _ => unreachable!("not effectful"),
         }
@@ -804,18 +869,57 @@ fn expr_contains_token(expr: &str, id: &str) -> bool {
 /// accepts non-static futures) or we own the runtime entirely.
 fn drive_async<F>(future: F) -> F::Output
 where
-    F: std::future::Future,
+    F: std::future::Future + Send + 'static,
+    F::Output: Send,
 {
-    match tokio::runtime::Handle::try_current() {
-        Ok(handle) => handle.block_on(future),
-        Err(_) => {
+    // Box the future so its type is `Pin<Box<dyn Future<Output = T> + Send>>`.
+    // This erases the future's own type, so the Output's lifetime
+    // is no longer tied to the future's local variables. The
+    // 'static bound on F (the future itself) ensures the
+    // captured data is 'static.
+    let boxed: std::pin::Pin<Box<dyn std::future::Future<Output = F::Output> + Send>> =
+        Box::pin(future);
+    drive_async_boxed(boxed)
+}
+
+fn drive_async_boxed<T: Send + 'static>(
+    future: std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send>>,
+) -> T {
+    // The future is `Send + 'static` because cell evaluators take
+    // owned data (Cell, CallerContext, Value, Arc<dyn ...>).
+    // This means we can always spawn the future on a dedicated
+    // thread with its own runtime — even when called from inside
+    // an existing tokio runtime (where `Handle::block_on` would
+    // panic). The dedicated thread is cheap (one per cell
+    // evaluation) and avoids any cross-runtime issues.
+    //
+    // We use a Mutex<Option<...>> to pass the result back across
+    // the thread boundary. The 'static bound on F::Output ensures
+    // the value can be moved freely.
+    use std::sync::{Arc, Mutex};
+    let slot: Arc<Mutex<Option<T>>> = Arc::new(Mutex::new(None));
+    let slot_for_thread = Arc::clone(&slot);
+    let join = std::thread::Builder::new()
+        .name("quilt-drive-async".to_string())
+        .spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .expect("failed to build tokio runtime");
-            rt.block_on(future)
-        }
-    }
+            let result = rt.block_on(future);
+            *slot_for_thread
+                .lock()
+                .expect("drive_async mutex poisoned") = Some(result);
+        })
+        .expect("failed to spawn thread");
+    let _ = join.join().expect("drive_async thread panicked");
+    // Take the result out. We need to keep the Mutex alive while
+    // we hold the lock guard, otherwise the guard would dangle.
+    let result = {
+        let mut guard = slot.lock().expect("drive_async mutex poisoned");
+        guard.take().expect("drive_async thread did not set result")
+    };
+    result
 }
 
 // Suppress unused-import warnings for items only used in async paths.
