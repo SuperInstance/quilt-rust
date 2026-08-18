@@ -330,16 +330,22 @@ pub fn evaluate_formula(
 fn register_helpers(engine: &mut Engine) {
     // Register the numeric helpers on the engine. We register
     // multiple overloads so the user can call them with both
-    // integer and float arguments. Rhai doesn't have a single
-    // `register_fn` for `Dynamic` that accepts variadic types.
+    // integer and float arguments, and also with rhai arrays
+    // (so the user can write `max([a, b, c])`). Rhai doesn't
+    // have a single `register_fn` for `Dynamic` that accepts
+    // variadic types, so we register one overload per (name,
+    // arg type) combination.
     engine.register_fn("abs", abs_i64_fn);
     engine.register_fn("abs", abs_f64_fn);
     engine.register_fn("min", min_i64_fn);
     engine.register_fn("min", min_f64_fn);
+    engine.register_fn("min", min_array_fn);
     engine.register_fn("max", max_i64_fn);
     engine.register_fn("max", max_f64_fn);
+    engine.register_fn("max", max_array_fn);
     engine.register_fn("clamp", clamp_i64_fn);
     engine.register_fn("clamp", clamp_f64_fn);
+    engine.register_fn("clamp", clamp_array_fn);
 }
 
 // Concrete typed implementations of the helpers. Rhai requires
@@ -354,6 +360,43 @@ fn max_i64_fn(a: i64, b: i64) -> i64 { a.max(b) }
 fn max_f64_fn(a: f64, b: f64) -> f64 { a.max(b) }
 fn clamp_i64_fn(n: i64, lo: i64, hi: i64) -> i64 { n.clamp(lo, hi) }
 fn clamp_f64_fn(n: f64, lo: f64, hi: f64) -> f64 { n.clamp(lo, hi) }
+
+/// Array variants. Allow the user to write `max([a, b, c])` and
+/// `clamp([n, lo, hi])` in addition to the binary forms.
+fn min_array_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
+    let mut best: Option<f64> = None;
+    for a in args {
+        let n = a.as_float().or_else(|_| a.as_int().map(|i| i as f64))
+            .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+        best = Some(best.map_or(n, |b| b.min(n)));
+    }
+    best.map(rhai::Dynamic::from).ok_or_else(|| {
+        Box::new(rhai::EvalAltResult::ErrorRuntime("min() requires at least one argument".into(), rhai::Position::NONE))
+    })
+}
+fn max_array_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
+    let mut best: Option<f64> = None;
+    for a in args {
+        let n = a.as_float().or_else(|_| a.as_int().map(|i| i as f64))
+            .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+        best = Some(best.map_or(n, |b| b.max(n)));
+    }
+    best.map(rhai::Dynamic::from).ok_or_else(|| {
+        Box::new(rhai::EvalAltResult::ErrorRuntime("max() requires at least one argument".into(), rhai::Position::NONE))
+    })
+}
+fn clamp_array_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
+    if args.len() != 3 {
+        return Err(Box::new(rhai::EvalAltResult::ErrorRuntime("clamp(arr) needs [n, lo, hi]".into(), rhai::Position::NONE)));
+    }
+    let n = args[0].as_float().or_else(|_| args[0].as_int().map(|i| i as f64))
+        .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+    let lo = args[1].as_float().or_else(|_| args[1].as_int().map(|i| i as f64))
+        .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+    let hi = args[2].as_float().or_else(|_| args[2].as_int().map(|i| i as f64))
+        .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+    Ok(rhai::Dynamic::from(n.clamp(lo, hi)))
+}
 
 fn abs_fn(_x: rhai::Dynamic) -> rhai::Dynamic { rhai::Dynamic::UNIT }
 fn min_fn(_a: rhai::Dynamic, _b: rhai::Dynamic) -> rhai::Dynamic { rhai::Dynamic::UNIT }

@@ -1,0 +1,94 @@
+id: ab-test-router
+title: "A/B Test Router with Deterministic Split"
+description: >
+  Splits incoming traffic to variant A or variant B based on a
+  hash of the caller's row. Shows how to implement
+  deterministic-per-user A/B testing in a single router cell,
+  with metrics cells that count impressions per variant.
+version: 0.2.0
+
+axes:
+  rows: { name: user }
+  cols: { name: metric }
+
+cells:
+  # -------------------------------------------------------------------------
+  # Configuration
+  # -------------------------------------------------------------------------
+
+  - id: config.experiment_name
+    kind: value
+    value: "checkout-button-color-2026-q3"
+    description: "Identifier for this A/B test (for telemetry)"
+
+  - id: config.variant_a
+    kind: value
+    value: "blue"
+    description: "Variant A label"
+
+  - id: config.variant_b
+    kind: value
+    value: "green"
+    description: "Variant B label"
+
+  - id: config.split_ratio
+    kind: value
+    value: 0.5
+    description: "Fraction of traffic going to variant B (0-1)"
+
+  # -------------------------------------------------------------------------
+  # Hash function for deterministic variant assignment.
+  # We use a simple FNV-1a-like hash. Same caller.row → same
+  # variant, every time. This is what makes the A/B test valid.
+  # -------------------------------------------------------------------------
+
+  - id: hash.user
+    kind: program
+    code: |
+      let s = caller.row;
+      let h = 2166136261;
+      if s != () {
+        for ch in s {
+          h = h ^ ch;
+          h = (h * 16777619) % 4294967296;
+        }
+      }
+      h
+    description: "Deterministic 32-bit hash of the caller's row id"
+
+  - id: variant.bucket
+    kind: formula
+    expr: "=(hash.user % 1000) / 1000"
+    description: "Bucket the user into [0, 1) — a uniform distribution"
+
+  - id: variant.assignment
+    kind: router
+    description: "Pick A or B based on the bucket vs split ratio"
+    rules:
+      - when: 'variant.bucket < config.split_ratio'
+        route: { cell: config.variant_b }
+      - when: 'true'
+        route: { cell: config.variant_a }
+
+  # -------------------------------------------------------------------------
+  # Metrics — count impressions per variant.
+  # In a real harness these would be pushed to a time-series
+  # database. Here they accumulate in value cells.
+  # -------------------------------------------------------------------------
+
+  - id: metrics.impressions_a
+    kind: value
+    value: 0
+    description: "Total impressions for variant A"
+
+  - id: metrics.impressions_b
+    kind: value
+    value: 0
+    description: "Total impressions for variant B"
+
+  - id: metrics.assignment_for_log
+    kind: program
+    code: |
+      let v = qget("variant.assignment").data;
+      v
+    description: "Returns the assigned variant label for logging"

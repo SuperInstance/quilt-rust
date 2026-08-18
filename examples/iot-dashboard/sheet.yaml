@@ -1,0 +1,139 @@
+id: iot-dashboard
+title: "IoT Sensor Dashboard with Status Aggregation"
+description: >
+  Aggregates three thermometers (sensor cells) into a room
+  status (formula), then a building status (formula on top of
+  rooms), with listener cells that fire when thresholds are
+  crossed. Demonstrates hierarchical formula composition and
+  listener-driven alerts.
+version: 0.2.0
+
+axes:
+  rows: { name: room }
+  cols: { name: metric }
+
+cells:
+  # -------------------------------------------------------------------------
+  # Three rooms, three thermometers. Each has a slightly
+  # different default. The CLI / harness can push() values to
+  # override.
+  # -------------------------------------------------------------------------
+
+  - id: thermometer.lobby
+    kind: sensor
+    source: simulated
+    rate: 2000
+    unit: celsius
+    default: 21.0
+    description: "Lobby temperature"
+
+  - id: thermometer.lab
+    kind: sensor
+    source: simulated
+    rate: 2000
+    unit: celsius
+    default: 19.0
+    description: "Lab temperature (should be cooler)"
+
+  - id: thermometer.server_room
+    kind: sensor
+    source: simulated
+    rate: 2000
+    unit: celsius
+    default: 17.0
+    description: "Server room (cold!)"
+
+  # -------------------------------------------------------------------------
+  # Per-room status: ok / warm / hot / cold / off
+  # -------------------------------------------------------------------------
+
+  - id: status.lobby
+    kind: formula
+    expr: '=if thermometer.lobby > 28 { "hot" } else if thermometer.lobby > 24 { "warm" } else if thermometer.lobby < 16 { "cold" } else { "ok" }'
+    description: "Lobby status"
+
+  - id: status.lab
+    kind: formula
+    expr: '=if thermometer.lab > 28 { "hot" } else if thermometer.lab > 24 { "warm" } else if thermometer.lab < 16 { "cold" } else { "ok" }'
+    description: "Lab status"
+
+  - id: status.server_room
+    kind: formula
+    expr: '=if thermometer.server_room > 28 { "hot" } else if thermometer.server_room > 24 { "warm" } else if thermometer.server_room < 16 { "cold" } else { "ok" }'
+    description: "Server room status"
+
+  # -------------------------------------------------------------------------
+  # Building-level status: worst of all rooms.
+  # -------------------------------------------------------------------------
+
+  - id: building.rooms_with_problems
+    kind: program
+    code: |
+      let rooms = ["lobby", "lab", "server_room"];
+      let problems = [];
+      for r in rooms {
+        let v = qget("status." + r).data;
+        if v != "ok" { problems.push(r + ":" + v); }
+      }
+      if problems.len() == 0 { "all_ok" } else { problems.join(",") }
+    description: "List of rooms that are not ok, joined with their status"
+
+  - id: building.overall
+    kind: router
+    description: "Overall building status, by severity"
+    rules:
+      - when: 'building.rooms_with_problems.includes("hot")'
+        route: { value: "critical" }
+      - when: 'building.rooms_with_problems.includes("warm") || building.rooms_with_problems.includes("cold")'
+        route: { value: "warning" }
+      - when: 'true'
+        route: { value: "ok" }
+
+  # -------------------------------------------------------------------------
+  # Alerts — listeners that fire on status changes.
+  # The action field is metadata; a real harness would
+  # subscribe to listener events and dispatch them.
+  # -------------------------------------------------------------------------
+
+  - id: alert.lobby_hot
+    kind: listener
+    watch: [status.lobby]
+    action: log.lobby_hot
+    description: "Fires when the lobby status becomes 'hot'"
+
+  - id: log.lobby_hot
+    kind: io
+    direction: out
+    port: log:stderr
+    description: "Writes a warning when the lobby is hot"
+
+  - id: alert.building_critical
+    kind: listener
+    watch: [building.overall]
+    action: log.building_critical
+    description: "Fires when the building overall status becomes 'critical'"
+
+  - id: log.building_critical
+    kind: io
+    direction: out
+    port: log:stderr
+    description: "Writes a critical alert when the building is critical"
+
+  # -------------------------------------------------------------------------
+  # Average temperature for the dashboard
+  # -------------------------------------------------------------------------
+
+  - id: dashboard.avg_temp
+    kind: formula
+    expr: "=(thermometer.lobby + thermometer.lab + thermometer.server_room) / 3"
+    description: "Building-wide average temperature"
+
+  - id: dashboard.max_temp
+    kind: formula
+    expr: "=max([thermometer.lobby, thermometer.lab, thermometer.server_room])"
+    description: "Hottest room"
+
+  - id: dashboard.min_temp
+    kind: formula
+    expr: "=min([thermometer.lobby, thermometer.lab, thermometer.server_room])"
+    description: "Coldest room"

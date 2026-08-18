@@ -120,9 +120,14 @@ pub async fn evaluate_program(
     // (which rhai can dispatch on) and capture the runtime + ctx
     // via move. This requires us to register on a fresh engine,
     // which is fine — the engine is per-evaluation.
+    // We expose the runtime methods under the `q` namespace
+    // (`qget`, `qset`, `qcall`, `qlist`) to avoid colliding with
+    // rhai's built-in `call` (which is a keyword for calling a
+    // function pointer). The TS version of Quilt uses
+    // `runtime.get("a")`; the Rust port uses `qget("a")`.
     let rt = Arc::clone(&runtime);
     let rt_ctx = ctx.clone();
-    engine.register_fn("get", move |id: &str| -> rhai::Dynamic {
+    engine.register_fn("qget", move |id: &str| -> rhai::Dynamic {
         match rt.get(id, &rt_ctx) {
             Ok(v) => cell_value_to_dynamic(v),
             Err(e) => {
@@ -138,13 +143,13 @@ pub async fn evaluate_program(
     });
     let rt2 = Arc::clone(&runtime);
     let rt2_ctx = ctx.clone();
-    engine.register_fn("set", move |id: &str, value: rhai::Dynamic| -> () {
+    engine.register_fn("qset", move |id: &str, value: rhai::Dynamic| -> () {
         let v = dynamic_to_json(value);
         rt2.set(id, v, &rt2_ctx).map_err(|e| format!("{e}")).unwrap_or(());
     });
     let rt3 = Arc::clone(&runtime);
     let rt3_ctx = ctx.clone();
-    engine.register_fn("call", move |id: &str, input: rhai::Dynamic| -> rhai::Dynamic {
+    engine.register_fn("qcall", move |id: &str, input: rhai::Dynamic| -> rhai::Dynamic {
         let input_value = dynamic_to_json(input);
         let input_opt = if input_value.is_null() {
             None
@@ -165,8 +170,16 @@ pub async fn evaluate_program(
         }
     });
     let rt4 = Arc::clone(&runtime);
-    engine.register_fn("list", move || -> rhai::Array {
+    engine.register_fn("qlist", move || -> rhai::Array {
         rt4.list().into_iter().map(|s| s.into()).collect()
+    });
+
+    // `includes` and `contains` for arrays — rhai 1.x doesn't
+    // expose these as built-ins on Dynamic arrays. We register
+    // them so the user can write `tags.includes("premium")` in
+    // their scripts.
+    engine.register_fn("includes", |arr: rhai::Array, needle: &str| -> bool {
+        arr.iter().any(|v| v.clone().into_string().map(|s| s == needle).unwrap_or(false))
     });
 
     // Bind input.
@@ -463,7 +476,7 @@ mod tests {
         let rt = Arc::new(CountingRuntime {
             gets: Mutex::new(Vec::new()),
         });
-        let cell = program_cell("let v = get(\"a\"); v.data");
+        let cell = program_cell("let v = qget(\"a\"); v.data");
         let v = evaluate_program(
             cell,
             CallerContext::default(),

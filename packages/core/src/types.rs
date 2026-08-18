@@ -701,10 +701,25 @@ pub struct Cell {
 impl Cell {
     /// Construct a fresh cell from a def. The cell is in `idle` state.
     pub fn new(def: CellDef) -> Self {
+        // For value cells, seed the cell with the YAML-provided
+        // value so `get` returns the right thing immediately
+        // (instead of going through the cache-miss → compute →
+        // cache path which is wasted work for static data).
+        let value = if let Some(v) = &def.value {
+            CellValue {
+                data: v.clone(),
+                status: CellStatus::Ready,
+                computed_at: Some(now_millis()),
+                error: None,
+                effects: Vec::new(),
+            }
+        } else {
+            CellValue::default()
+        };
         Self {
             id: def.id.clone(),
             def,
-            value: CellValue::default(),
+            value,
             dependencies: HashSet::new(),
             dependents: HashSet::new(),
             context_cache: indexmap::IndexMap::new(),

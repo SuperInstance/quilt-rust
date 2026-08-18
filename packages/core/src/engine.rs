@@ -571,16 +571,17 @@ impl QuiltEngine {
             (cell.dependencies.iter().cloned().collect(), dep_kinds)
         };
 
-        // Pre-evaluate formula dependencies. For each dep, we
-        // extend the caller's context with the dep's id (which
-        // is what `get` would do internally) so the result lands
-        // in the right cache slot for the snapshot lookup.
+        // Pre-evaluate formula AND program dependencies. The
+        // engine's `get` does this for formulas (which is
+        // needed for the per-context cache lookup) and for
+        // programs (which need to actually run to produce a
+        // value at all). Value and sensor cells already have
+        // their value, so we skip them.
         for (dep_id, kind) in &dep_kinds {
-            if *kind == crate::types::CellKind::Formula {
-                // The dep's evaluation will extend `caller_ctx`
-                // with `dep_id` as the caller. We pass the
-                // original context (not yet extended) and let
-                // the engine do the extension.
+            if matches!(
+                kind,
+                crate::types::CellKind::Formula | crate::types::CellKind::Program
+            ) {
                 let _ = self.get(dep_id, caller_ctx.clone());
             }
         }
@@ -619,6 +620,14 @@ impl QuiltEngine {
         let mut cells = self.cells.write();
         if let Some(cell) = cells.get_mut(id) {
             cell.context_cache.insert(key, value.clone());
+            // Also update `cell.value` so that callers reading
+            // the cell's "current" value (via get_cell or via
+            // the snapshot for chained formulas) see the latest
+            // result, not the null default. The per-context
+            // cache is for caller-aware memoization; cell.value
+            // is the most recent result regardless of context.
+            cell.value = value.clone();
+            cell.last_context = Some(ctx.clone());
         }
     }
 
@@ -654,7 +663,7 @@ impl QuiltEngine {
         };
         let ctx = full_ctx.clone();
         let kind = cell.def.kind;
-        match kind {
+        let result = match kind {
             CellKind::Api => Ok(drive_async(evaluate_api(cell, ctx, input, None))),
             CellKind::Program => {
                 let arc_engine = self
@@ -671,7 +680,11 @@ impl QuiltEngine {
                 drive_async(evaluate_router(cell, ctx, input, runtime))
             }
             _ => unreachable!("not effectful"),
-        }
+        }?;
+        // Cache the result so subsequent reads (and the
+        // build_formula_snapshot lookup) see the latest value.
+        self.cache_result(id, full_ctx, &result);
+        Ok(result)
     }
 
     /// Propagate a change to all dependents.
@@ -685,14 +698,21 @@ impl QuiltEngine {
                 .unwrap_or_default()
         };
 
-        // Mark formula/value dependents as stale.
+        // Mark formula/value dependents as stale. We clear
+        // the data to `Null` so callers can't accidentally read
+        // a stale value. The next `get` re-evaluates and
+        // re-populates both `cell.value` and `context_cache`.
         for dep_id in &dependents {
             let mut cells = self.cells.write();
             if let Some(dep) = cells.get_mut(dep_id) {
                 if dep.def.kind == CellKind::Formula || dep.def.kind == CellKind::Value {
-                    let mut stale = dep.value.clone();
-                    stale.status = CellStatus::Stale;
-                    dep.value = stale;
+                    dep.value = CellValue {
+                        data: Value::Null,
+                        status: CellStatus::Stale,
+                        computed_at: None,
+                        error: None,
+                        effects: Vec::new(),
+                    };
                     dep.context_cache.clear();
                 }
             }

@@ -1,0 +1,160 @@
+id: task-scheduler
+title: "Reactive Task Scheduler with Listener Triggers"
+description: >
+  Models a small task scheduler. Tasks have a name, status,
+  and a 'next_run_at' timestamp. A listener cell watches the
+  clock and fires when any task is due. Demonstrates the
+  listener cell kind, with chained formulas computing
+  derived state (overdue, ready, completed).
+version: 0.2.0
+
+axes:
+  rows: { name: task }
+  cols: { name: field }
+
+cells:
+  # -------------------------------------------------------------------------
+  # The clock — the only sensor in this example.
+  # The harness updates it.
+  # -------------------------------------------------------------------------
+
+  - id: clock.now
+    kind: value
+    value: 0
+    description: "Current time (ms since epoch) — set by the harness"
+
+  # -------------------------------------------------------------------------
+  # Three sample tasks. Each has:
+  #   - a name (for display)
+  #   - a status (pending | running | done | failed)
+  #   - a next_run_at (when to run next)
+  #   - a duration_ms (how long the last run took)
+  # -------------------------------------------------------------------------
+
+  - id: task.daily_summary.name
+    kind: value
+    value: "Daily summary"
+    description: "Task 1 name"
+
+  - id: task.daily_summary.status
+    kind: value
+    value: "pending"
+    description: "Task 1 status"
+
+  - id: task.daily_summary.next_run_at
+    kind: value
+    value: 0
+    description: "When to run next (ms)"
+
+  - id: task.daily_summary.duration_ms
+    kind: value
+    value: 0
+    description: "Last run duration"
+
+  - id: task.backup.name
+    kind: value
+    value: "Database backup"
+    description: "Task 2 name"
+
+  - id: task.backup.status
+    kind: value
+    value: "pending"
+    description: "Task 2 status"
+
+  - id: task.backup.next_run_at
+    kind: value
+    value: 0
+    description: "When to run next (ms)"
+
+  - id: task.backup.duration_ms
+    kind: value
+    value: 0
+    description: "Last run duration"
+
+  - id: task.healthcheck.name
+    kind: value
+    value: "Health check"
+    description: "Task 3 name"
+
+  - id: task.healthcheck.status
+    kind: value
+    value: "pending"
+    description: "Task 3 status"
+
+  - id: task.healthcheck.next_run_at
+    kind: value
+    value: 0
+    description: "When to run next (ms)"
+
+  - id: task.healthcheck.duration_ms
+    kind: value
+    value: 0
+    description: "Last run duration"
+
+  # -------------------------------------------------------------------------
+  # Derived cells — formulas that compute ready/overdue/etc.
+  # These recompute when their inputs change.
+  # -------------------------------------------------------------------------
+
+  - id: task.daily_summary.is_overdue
+    kind: formula
+    expr: "=task.daily_summary.next_run_at > 0 && task.daily_summary.next_run_at < clock.now && task.daily_summary.status != \"running\""
+    description: "Is this task overdue?"
+
+  - id: task.backup.is_overdue
+    kind: formula
+    expr: "=task.backup.next_run_at > 0 && task.backup.next_run_at < clock.now && task.backup.status != \"running\""
+    description: "Is this task overdue?"
+
+  - id: task.healthcheck.is_overdue
+    kind: formula
+    expr: "=task.healthcheck.next_run_at > 0 && task.healthcheck.next_run_at < clock.now && task.healthcheck.status != \"running\""
+    description: "Is this task overdue?"
+
+  - id: scheduler.any_overdue
+    kind: program
+    code: |
+      let tasks = ["daily_summary", "backup", "healthcheck"];
+      let overdue = [];
+      for t in tasks {
+        if qget("task." + t + ".is_overdue").data == true {
+          overdue.push(t);
+        }
+      }
+      overdue
+    description: "List of overdue tasks (program cell, walks the formulas)"
+
+  - id: scheduler.summary
+    kind: program
+    code: |
+      let tasks = ["daily_summary", "backup", "healthcheck"];
+      let summary = #{};
+      for t in tasks {
+        let status = qget("task." + t + ".status").data;
+        let next_run = qget("task." + t + ".next_run_at").data;
+        let overdue = qget("task." + t + ".is_overdue").data;
+        let entry = #{
+          status: status,
+          next_run_at: next_run,
+          overdue: overdue,
+        };
+        summary[t] = entry;
+      }
+      summary
+    description: "Snapshot of all tasks — what the dashboard reads"
+
+  # -------------------------------------------------------------------------
+  # Listeners — react to overdue tasks.
+  # -------------------------------------------------------------------------
+
+  - id: alert.overdue
+    kind: listener
+    watch: [scheduler.any_overdue]
+    action: log.overdue
+    description: "Fires when any task is overdue"
+
+  - id: log.overdue
+    kind: io
+    direction: out
+    port: log:stderr
+    description: "Writes a warning when tasks are overdue"

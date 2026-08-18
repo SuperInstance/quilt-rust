@@ -1,0 +1,143 @@
+id: chat-router
+title: "LLM Chat with Caller-Aware Routing"
+description: >
+  Routes an LLM chat call to one of three model tiers based on
+  caller.identity.tags (premium/standard/free) and input length.
+  Demonstrates router cells for caller-aware capability selection
+  and chained formula cells for derived routing decisions.
+version: 0.2.0
+
+axes:
+  rows: { name: tenant }
+  cols: { name: capability }
+
+cells:
+  # -------------------------------------------------------------------------
+  # The three model tiers. In production each would point at a
+  # real provider (e.g. "https://api.openai.com/v1/chat/..." for
+  # gpt-4o, "https://api.anthropic.com/v1/messages" for claude).
+  # We use the "model:" pseudo-endpoint which returns a synthetic
+  # response, but the routing logic is the real thing.
+  # -------------------------------------------------------------------------
+
+  - id: model.fast
+    kind: api
+    endpoint: "model:gpt-4o-mini"
+    description: "Fast, cheap — for free tier or short queries"
+
+  - id: model.standard
+    kind: api
+    endpoint: "model:gpt-4o"
+    description: "Mid-tier — for standard tier"
+
+  - id: model.premium
+    kind: api
+    endpoint: "model:claude-opus-4"
+    description: "Slowest, smartest — for premium tier"
+
+  - id: model.creative
+    kind: api
+    endpoint: "model:claude-opus-4"
+    description: "Same model, different system prompt — for creative column"
+
+  # -------------------------------------------------------------------------
+  # System prompts per tier.
+  # -------------------------------------------------------------------------
+
+  - id: prompt.fast
+    kind: value
+    value: "You are a helpful assistant. Be brief."
+    description: "Short system prompt for the fast model"
+
+  - id: prompt.standard
+    kind: value
+    value: "You are a helpful, knowledgeable assistant."
+    description: "Default system prompt"
+
+  - id: prompt.premium
+    kind: value
+    value: "You are an expert. Take your time. Reason carefully."
+    description: "Long, thoughtful system prompt for premium users"
+
+  - id: prompt.creative
+    kind: value
+    value: "You are a creative writer. Surprise and delight."
+    description: "System prompt for the creative column"
+
+  # -------------------------------------------------------------------------
+  # Inputs (the caller's message and metadata).
+  # In a real harness these come from the caller, not the sheet.
+  # -------------------------------------------------------------------------
+
+  - id: input.message
+    kind: value
+    value: "Explain how a flywheel stores rotational energy."
+    description: "The user's prompt"
+
+  - id: input.message_length
+    kind: formula
+    expr: "=len(input.message)"
+    description: "Character count of the input — used to escalate long queries"
+
+  # -------------------------------------------------------------------------
+  # Routers — the heart of this example.
+  # Each router picks a destination based on caller context.
+  # -------------------------------------------------------------------------
+
+  - id: route.model
+    kind: router
+    description: "Picks the model based on caller tier and message length"
+    rules:
+      # Premium tier: always use the premium model
+      - when: 'caller.identity != () && caller.identity.tags.includes("premium")'
+        route: { cell: model.premium }
+      # Long messages from any tier escalate to standard
+      - when: 'input.message_length > 500'
+        route: { cell: model.standard }
+      # Default for everyone else
+      - when: 'true'
+        route: { cell: model.fast }
+
+  - id: route.prompt
+    kind: router
+    description: "Picks the system prompt based on column and tier"
+    rules:
+      - when: 'caller.column == "creative"'
+        route: { cell: prompt.creative }
+      - when: 'caller.identity != () && caller.identity.tags.includes("premium")'
+        route: { cell: prompt.premium }
+      - when: 'true'
+        route: { cell: prompt.standard }
+
+  # -------------------------------------------------------------------------
+  # The workflow — a program cell that does the actual work.
+  # In a real harness, this would call the LLM. Here it
+  # composes the routing decision into a request envelope.
+  # -------------------------------------------------------------------------
+
+  - id: workflow.ask
+    kind: program
+    code: |
+      let msg = input;
+      let model_cell = qcall("route.model", msg);
+      let prompt_cell = qcall("route.prompt", msg);
+      // Determine tier from caller identity tags. rhai's `&&`
+      // short-circuits but returns null if any operand is null,
+      // and the `if` condition requires a bool. So we use
+      // explicit `is_some` / `includes` checks.
+      let tags = if caller.identity != () { caller.identity.tags } else { [] };
+      let tier = if tags.includes("premium") {
+        "premium"
+      } else if tags.includes("standard") {
+        "standard"
+      } else {
+        "free"
+      };
+      #{
+        input: msg,
+        model: model_cell.data,
+        prompt: prompt_cell.data,
+        tier: tier,
+        routedAt: caller.timestamp
+      }
+    description: "Composes the routed choice into a request envelope"

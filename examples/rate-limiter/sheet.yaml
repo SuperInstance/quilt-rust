@@ -1,0 +1,117 @@
+id: rate-limiter
+title: "Per-Caller Token-Bucket Rate Limiter"
+description: >
+  Implements a token-bucket rate limiter as formula cells. Each
+  caller has a bucket that refills at a steady rate; requests
+  consume tokens. The 'allow' router checks whether the caller
+  has tokens left and either routes to the action or to a
+  'throttled' value.
+version: 0.2.0
+
+axes:
+  rows: { name: caller }
+  cols: { name: capability }
+
+cells:
+  # -------------------------------------------------------------------------
+  # Configuration
+  # -------------------------------------------------------------------------
+
+  - id: config.bucket_capacity
+    kind: value
+    value: 10
+    description: "Max tokens in a bucket"
+
+  - id: config.refill_rate
+    kind: value
+    value: 1.0
+    description: "Tokens added per second"
+
+  - id: config.cost_per_request
+    kind: value
+    value: 1
+    description: "Tokens consumed per call"
+
+  # -------------------------------------------------------------------------
+  # Per-caller state. In a real harness, this would be a
+  # per-row bucket. We model it with a single shared bucket
+  # and a per-row key. The 'tokens' cell is the current
+  # bucket level, plus the 'last_refill' timestamp.
+  # -------------------------------------------------------------------------
+
+  - id: bucket.tokens
+    kind: value
+    value: 10.0
+    description: "Current token count (shared bucket, for demo)"
+
+  - id: bucket.last_refill
+    kind: value
+    value: 0
+    description: "Last refill timestamp (ms since epoch)"
+
+  # -------------------------------------------------------------------------
+  # Compute the time delta and tokens to add.
+  # These formulas depend on a clock cell that the harness
+  # updates. Here we use a static value for the example.
+  # -------------------------------------------------------------------------
+
+  - id: clock.now
+    kind: value
+    value: 0
+    description: "Current time (ms) — set by the harness"
+
+  - id: bucket.elapsed_ms
+    kind: formula
+    expr: "=clock.now - bucket.last_refill"
+    description: "Milliseconds since last refill"
+
+  - id: bucket.elapsed_seconds
+    kind: formula
+    expr: "=bucket.elapsed_ms / 1000"
+    description: "Seconds since last refill"
+
+  - id: bucket.tokens_to_add
+    kind: formula
+    expr: "=bucket.elapsed_seconds * config.refill_rate"
+    description: "How many tokens to add based on elapsed time"
+
+  - id: bucket.projected
+    kind: formula
+    expr: "=min(bucket.tokens + bucket.tokens_to_add, config.bucket_capacity)"
+    description: "Projected tokens after refill (capped at capacity)"
+
+  # -------------------------------------------------------------------------
+  # The actual rate-limit decision.
+  # -------------------------------------------------------------------------
+
+  - id: allow.request
+    kind: router
+    description: "Allow or throttle based on bucket level"
+    rules:
+      - when: 'bucket.projected >= config.cost_per_request'
+        route: { value: true }
+      - when: 'true'
+        route: { value: false }
+
+  - id: allow.decision_text
+    kind: router
+    description: "Human-readable decision"
+    rules:
+      - when: 'allow.request == true'
+        route: { value: "allowed" }
+      - when: 'true'
+        route: { value: "throttled" }
+
+  # -------------------------------------------------------------------------
+  # Stats for monitoring
+  # -------------------------------------------------------------------------
+
+  - id: stats.tokens_available
+    kind: formula
+    expr: "=bucket.projected"
+    description: "Current available tokens"
+
+  - id: stats.utilization
+    kind: formula
+    expr: "=1 - (bucket.projected / config.bucket_capacity)"
+    description: "Bucket utilization (0 = full, 1 = empty)"
