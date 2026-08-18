@@ -1,5 +1,9 @@
 # 🦀 Quilt (Rust)
 
+<p align="center">
+  <img src="assets/images/hero-cells.jpg" alt="Every cell its own instance — runtimes, tools, and models living in the grid" width="720">
+</p>
+
 > **A spreadsheet where every cell is a live, addressable capability — now in a single statically-linked binary.**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
