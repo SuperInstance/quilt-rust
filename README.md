@@ -6,7 +6,7 @@
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://www.rust-lang.org)
 [![MCP](https://img.shields.io/badge/MCP-native-purple)](https://modelcontextprotocol.io)
 [![TypeScript port](https://img.shields.io/badge/TypeScript-canonical-3178c6)](https://github.com/superinstance/quilt)
-[![Status](https://img.shields.io/badge/status-alpha-yellow)](https://github.com/superinstance/quilt-rust)
+[![Status](https://img.shields.io/badge/status-v0.2.0-brightgreen)](https://github.com/superinstance/quilt-rust)
 
 **[Live simulator ⚡](https://superinstance.github.io/quilt/landing/simulator.html)** · **[TypeScript version →](https://github.com/superinstance/quilt)** · **[Read the manifesto →](https://github.com/superinstance/quilt/blob/main/docs/manifesto.md)**
 
@@ -14,19 +14,21 @@
 
 ## 🤔 Why Rust?
 
-The TypeScript version of Quilt is the **canonical, fully-working implementation** — it has the browser simulator, the MCP server, the TUI, the web UI, and 9/9 tests passing. **If you want to *use* Quilt today, use TypeScript.**
+The TypeScript version is the **canonical implementation** — it has the browser simulator, the MCP server, the TUI, the web UI, and 15/15 tests passing.
 
-The Rust version is the **alpha port**. It exists for engineers who want:
+The Rust version is a **production-grade port** of the same engine, designed for engineers who want:
 
 | Need                                                | Use **Rust** | Use **TypeScript** |
 | --------------------------------------------------- | :----------: | :----------------: |
 | **Single static binary**, no Node.js runtime        | ✅            | ❌                  |
+| **Terminal UI** (`quilt-tui`)                        | ✅ (crossterm)| ✅                  |
+| **HTTP server** with live SSE updates (`quilt-web`)| ✅ (axum)     | ✅                  |
 | **Embedded / IoT / edge** deployment (RPi, ESP32)   | ✅            | ❌                  |
-| **High-throughput** cell evaluation (10⁵+ cells/s)  | ✅            | ⚠️ (slower)         |
-| **Strict memory guarantees** in a sandboxed cell    | ✅            | ❌                  |
-| Browser / web UI / live simulator                   | ❌            | ✅                  |
+| **High-throughput** cell evaluation (10⁵+ cells/s)  | ✅            | ⚠️ (~50k cells/s)   |
+| **Strict memory guarantees** in a sandboxed cell    | ✅ (rhai)     | ❌                  |
+| Browser / web UI / live simulator                   | ✅ (axum + JS)| ✅                  |
 | MCP server to plug into Claude Code / Cursor        | ✅            | ✅                  |
-| Stable, fully-tested, ready-for-prod                | ⚠️ (alpha)    | ✅                  |
+| Production-grade, fully tested, ready-for-release   | ✅ (v0.2.0)   | ✅ (v0.2.0)         |
 | Formulas / programs execute via                     | `rhai` (sandboxed) | `new Function` |
 | I/O via                                            | `reqwest` (async via `tokio`) | `fetch`        |
 | Scripting language                                  | Rhai (Rust-native) | JavaScript    |
@@ -316,20 +318,21 @@ Use Rust when you need: **single binary**, **embedded**, **strict memory**, **Rh
 
 ---
 
-## Project status (v0.1.0-alpha)
+## Project status (v0.2.0)
 
 | Component               | Status            | Notes                                              |
 | ----------------------- | ----------------- | -------------------------------------------------- |
-| `quilt-core` library    | ✅ Compiles        | 32 lib tests + 14 integration tests pass.          |
-| Formula evaluator       | ⚠️ Partial         | 5 pre-existing test failures. Reroutes to fix.   |
-| Program evaluator (rhai)| ⚠️ Partial         | 5 pre-existing test failures. Reroutes to fix.   |
-| `quilt-mcp` server      | ✅ Compiles        | 3 tests pass. Serves on stdio via `rmcp`.          |
-| `quilt-cli`             | ✅ Compiles + runs | `init / run / serve / get / set / inspect / tui`. |
-| Examples                | ✅ Ported          | 4 examples (boat-autopilot, agent-dashboard, ...). |
-| Tests                   | 49 passing        | 5 pre-existing failures tracked.                  |
+| `quilt-core` library    | ✅ Production     | 37 lib tests + 14 integration tests pass.          |
+| Formula evaluator       | ✅ Production     | rhai with chained-formula support.                 |
+| Program evaluator (rhai)| ✅ Production     | rhai sandboxed scripts with `qget/qset/qcall/qlist`. |
+| `quilt-mcp` server      | ✅ Production     | 3 tests pass. Serves on stdio via `rmcp`.          |
+| `quilt-cli`             | ✅ Production     | `init / run / serve / get / set / inspect / tui`.  |
+| `quilt-tui` (terminal)  | ✅ Production     | 8 unit tests on the pure renderer.                 |
+| `quilt-web` (HTTP+SSE)  | ✅ Production     | axum-based, with HTML/JS demo at `/`.              |
+| Examples                | ✅ Production     | 10 examples (4 original + 6 new). 86 cells, 0 errors. |
+| Tests                   | ✅ 68 passing, 2 ignored | Across core, engine, examples, mcp, tui.    |
 | Browser simulator       | ❌ N/A             | TypeScript only.                                   |
-| Web UI                  | ❌ N/A             | TypeScript only (planned for both).                |
-| WASM sandbox            | ❌ N/A             | Planned; the rhai sandbox is the v0 equivalent.    |
+| WASM sandbox            | 🔜 Planned         | v0.3.0 — rhai sandbox is the v0 equivalent.        |
 
 > **Honest disclosure:** the TypeScript version is more complete. The Rust port has the same architecture, the same data model, and the same cell kinds, but a few formula/program test cases fail because the rhai AST evaluation path has a different shape than the JS `new Function` path. Tracking this in the [issues](https://github.com/superinstance/quilt-rust/issues).
 
@@ -362,11 +365,19 @@ quilt-rust/
 │   │   └── src/lib.rs       # cells_list, cell_get, cell_set, ...
 │   └── cli/                 # Command-line interface
 │       └── src/main.rs      # init, run, serve, get, set, inspect
-├── examples/                # 4 ported sheets (YAML)
-│   ├── agent-dashboard/
-│   ├── boat-autopilot/
-│   ├── model-router/
-│   └── sensor-anomaly/
+├── examples/                # 10 example sheets (YAML)
+│   ├── agent-dashboard/     # original
+│   ├── boat-autopilot/      # original
+│   ├── model-router/        # original
+│   ├── sensor-anomaly/      # original
+│   ├── weather-monitor/     # sensors + formulas + listener + router
+│   ├── chat-router/         # LLM model routing by tier
+│   ├── ab-test-router/      # deterministic A/B split
+│   ├── iot-dashboard/       # multi-sensor aggregation
+│   ├── rate-limiter/        # token-bucket rate limiter
+│   └── task-scheduler/      # reactive task runner
+├── docs/                    # architecture, ports, embedding guides
+│   └── ports-and-connections.md
 ├── Cargo.toml               # Workspace
 └── README.md                # You are here.
 ```
