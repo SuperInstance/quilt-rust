@@ -37,7 +37,7 @@ use std::sync::Arc;
 use rhai::{Array, Dynamic, Engine, Map, Scope};
 use serde_json::Value;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::types::{now_millis, Cell, CellStatus, CellValue, CallerContext};
 
 /// What a program cell sees as `runtime`. A small subset of the engine's

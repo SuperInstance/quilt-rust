@@ -22,7 +22,7 @@
 use std::sync::Arc;
 
 use quilt_core::{
-    parse_sheet, CellDef, CellKind, CellStatus, CellValue, QuiltEngine, SheetDef,
+    parse_sheet, CellDef, CellKind, CellStatus, QuiltEngine, SheetDef,
 };
 
 // =============================================================================

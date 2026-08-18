@@ -183,10 +183,3 @@ impl From<serde_yml::Error> for Error {
     }
 }
 
-/// Format a `serde_json::Value` for display. Used in error messages.
-pub(crate) fn display_value(v: &serde_json::Value) -> String {
-    match v {
-        serde_json::Value::String(s) => format!("\"{s}\""),
-        other => other.to_string(),
-    }
-}

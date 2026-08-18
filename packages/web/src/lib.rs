@@ -24,11 +24,8 @@ use anyhow::{Context, Result};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::{
-        sse::{Event as SseEvent, KeepAlive, Sse},
-        IntoResponse,
-    },
-    routing::{get, post},
+    response::sse::{Event as SseEvent, KeepAlive, Sse},
+    routing::get,
     Json, Router,
 };
 use quilt_core::types::CallerContext;

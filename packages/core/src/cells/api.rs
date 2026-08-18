@@ -294,7 +294,6 @@ fn substitute(template: &str, ctx: &crate::types::CallerContext) -> String {
 }
 
 fn lookup(ctx: &crate::types::CallerContext, path: &str) -> String {
-    let mut cur: Option<&Value> = None;
     // Start from the context itself.
     let sheet = ctx.sheet.clone();
     let row = ctx.row.clone();
@@ -324,7 +323,7 @@ fn lookup(ctx: &crate::types::CallerContext, path: &str) -> String {
         "caller" => ctx.caller.clone().map(Value::String),
         _ => None,
     };
-    cur = value.as_ref();
+    let mut cur: Option<&Value> = value.as_ref();
 
     for p in parts {
         if let Some(v) = cur {

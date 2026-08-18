@@ -14,7 +14,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use quilt_web::{load_state, serve};
+use quilt_web::load_state;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tower_http::services::ServeDir;

@@ -370,7 +370,7 @@ fn value_compact(v: &Value) -> String {
 pub fn eval_when(expr: &str, ctx: &CallerContext) -> Result<bool> {
     use rhai::{Array, Engine, Map};
 
-    let mut engine = Engine::new();
+    let engine = Engine::new();
     // We don't need any of the standard packages for these tiny
     // expressions; they only operate on `caller`.
 

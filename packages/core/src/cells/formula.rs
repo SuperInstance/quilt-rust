@@ -441,7 +441,6 @@ pub fn json_to_dynamic(v: Value) -> rhai::Dynamic {
 
 /// Inverse of `json_to_dynamic`.
 pub fn dynamic_to_json(d: rhai::Dynamic) -> Value {
-    use rhai::Dynamic;
     if d.is_unit() {
         return Value::Null;
     }
