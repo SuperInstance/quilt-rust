@@ -278,7 +278,7 @@ impl QuiltMcpServer {
         &self,
         Parameters(input): Parameters<PushCellInput>,
     ) -> Result<CallToolResult, ErrorData> {
-        let ctx = build_context(None, None, None, None);
+        let _ctx = build_context(None, None, None, None);
         match self.engine.push(&input.id, input.data.clone()) {
             Ok(()) => Ok(CallToolResult::success(vec![Content::text(format!(
                 "pushed to {}",

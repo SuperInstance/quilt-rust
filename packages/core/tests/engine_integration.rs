@@ -364,7 +364,7 @@ fn subscribe_to_a_cell() {
     };
     engine.load_sheet(sheet).unwrap();
 
-    let mut handle = engine.subscribe("watched").unwrap();
+    let handle = engine.subscribe("watched").unwrap();
     // Make a change.
     engine
         .set("watched", serde_json::json!(42), quilt_core::CallerContext::default())

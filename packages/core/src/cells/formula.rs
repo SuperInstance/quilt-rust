@@ -524,7 +524,7 @@ mod tests {
     #[test]
     fn caller_row_visible() {
         let cell = make_formula_cell("if caller.row > 10 { \"premium\" } else { \"basic\" }");
-        let mut cell_values = HashMap::new();
+        let cell_values = HashMap::new();
         let mut ctx = CallerContext::default();
         ctx.row = Some(json!(5));
         let v1 = evaluate_formula(&cell, &cell_values, &ctx);
