@@ -802,7 +802,7 @@ impl QuiltEngine {
 // =============================================================================
 
 /// A subscription event.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SubscriptionEvent {
     /// The cell that changed.
     pub cell_id: CellId,

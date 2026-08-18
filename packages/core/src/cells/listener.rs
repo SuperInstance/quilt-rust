@@ -141,6 +141,7 @@ mod tests {
             code: None,
             source: None,
             rate: None,
+            default: None,
             watch: vec!["trigger".to_string()],
             condition: cond.map(String::from),
             action: action.map(String::from),

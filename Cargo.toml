@@ -4,6 +4,8 @@ members = [
     "packages/core",
     "packages/mcp",
     "packages/cli",
+    "packages/tui",
+    "packages/web",
 ]
 
 [workspace.package]

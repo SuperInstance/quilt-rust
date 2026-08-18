@@ -1,0 +1,13 @@
+[package]
+name = "quilt-tui"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Terminal UI for Quilt sheets — tmux-friendly, raw-ANSI renderer"
+
+[dependencies]
+quilt-core = { path = "../core" }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+crossterm = "0.28"
+anyhow = "1.0"

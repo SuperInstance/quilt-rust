@@ -1,0 +1,24 @@
+[package]
+name = "quilt-web"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Quilt for the browser — embeddable HTTP server + JS shim. Serves sheets over REST + SSE for live reactivity."
+
+[dependencies]
+quilt-core = { path = "../core" }
+quilt-mcp = { path = "../mcp" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+async-stream = "0.3"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+mime_guess = "2"
+clap = { version = "4.5", features = ["derive"] }
+crossbeam-channel = "0.5"

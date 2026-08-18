@@ -539,6 +539,12 @@ pub struct CellDef {
     /// Sampling rate in Hz (advisory only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<f64>,
+    /// Initial value for sensor cells. If a sensor has no real
+    /// data yet, the engine uses this value until something
+    /// pushes a real one. Lets demo sheets work without an
+    /// adapter wired up.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<Value>,
 
     // --- listener cells ---
     /// Cells this listener watches. Required for `listener` kind.
@@ -599,6 +605,7 @@ impl Default for CellDef {
             description: None,
             value: None,
             expr: None,
+            default: None,
             endpoint: None,
             method: None,
             headers: std::collections::BTreeMap::new(),
@@ -705,6 +712,8 @@ impl Cell {
         // value so `get` returns the right thing immediately
         // (instead of going through the cache-miss → compute →
         // cache path which is wasted work for static data).
+        // For sensor cells, seed with `def.default` if present
+        // (lets demo sheets work without a real adapter).
         let value = if let Some(v) = &def.value {
             CellValue {
                 data: v.clone(),
@@ -712,6 +721,18 @@ impl Cell {
                 computed_at: Some(now_millis()),
                 error: None,
                 effects: Vec::new(),
+            }
+        } else if matches!(def.kind, CellKind::Sensor) {
+            if let Some(d) = &def.default {
+                CellValue {
+                    data: d.clone(),
+                    status: CellStatus::Ready,
+                    computed_at: Some(now_millis()),
+                    error: None,
+                    effects: Vec::new(),
+                }
+            } else {
+                CellValue::default()
             }
         } else {
             CellValue::default()

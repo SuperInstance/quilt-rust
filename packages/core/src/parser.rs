@@ -243,6 +243,7 @@ pub fn cell(
         description: None,
         value: None,
         expr: None,
+        default: None,
         endpoint: None,
         method: None,
         headers: std::collections::BTreeMap::new(),

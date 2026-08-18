@@ -173,9 +173,12 @@ async fn inspect(file: &PathBuf) -> Result<()> {
 }
 
 async fn tui(file: &PathBuf) -> Result<()> {
-    eprintln!("quilt-tui is a TypeScript package (@quilt/tui) — not available from this Rust binary");
-    eprintln!("to use it: npx @quilt/tui {}", file.display());
-    Ok(())
+    use quilt_tui::Tui;
+    let sheet = parse_sheet_file(file)?;
+    let engine = QuiltEngine::new(file.display().to_string()).into_arc();
+    engine.load_sheet(sheet)?;
+    let mut tui = Tui::new(engine);
+    tui.run()
 }
 
 // =============================================================================

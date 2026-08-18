@@ -10,6 +10,7 @@ description = "Command-line interface for Quilt — init, run, serve --mcp, get,
 [dependencies]
 quilt-core = { path = "../core" }
 quilt-mcp = { path = "../mcp" }
+quilt-tui = { path = "../tui" }
 
 clap = { workspace = true }
 tokio = { workspace = true }

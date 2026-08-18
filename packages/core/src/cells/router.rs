@@ -187,6 +187,7 @@ mod tests {
             code: None,
             source: None,
             rate: None,
+            default: None,
             watch: Vec::new(),
             condition: None,
             action: None,
