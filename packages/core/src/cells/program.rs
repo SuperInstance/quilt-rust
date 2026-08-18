@@ -107,13 +107,65 @@ pub async fn evaluate_program(
 
     let mut scope = Scope::new();
 
-    // Bind the runtime handle.
-    let runtime_for_script = Arc::clone(&runtime);
-    let ctx_for_runtime = ctx.clone();
-    scope.push_dynamic(
-        "runtime",
-        make_runtime_value(runtime_for_script, ctx_for_runtime),
-    );
+    // Bind the runtime handle. We expose the runtime methods as
+    // top-level scope variables (`get`, `set`, `call`, `list`) so the
+    // user script can write `get("a")` directly. The TS version of
+    // Quilt uses `runtime.get("a")`; the Rust port uses the bare
+    // form because rhai's map-with-callable-values story is
+    // fragile.
+    //
+    // We use `Engine::register_fn` to bind real Rust functions
+    // (which rhai can dispatch on) and capture the runtime + ctx
+    // via move. This requires us to register on a fresh engine,
+    // which is fine — the engine is per-evaluation.
+    let rt = Arc::clone(&runtime);
+    let rt_ctx = ctx.clone();
+    engine.register_fn("get", move |id: &str| -> rhai::Dynamic {
+        match rt.get(id, &rt_ctx) {
+            Ok(v) => cell_value_to_dynamic(v),
+            Err(e) => {
+                let mut m = rhai::Map::new();
+                m.insert("__quilt_error".into(), true.into());
+                m.insert(
+                    "message".into(),
+                    format!("runtime.get failed: {e}").into(),
+                );
+                m.into()
+            }
+        }
+    });
+    let rt2 = Arc::clone(&runtime);
+    let rt2_ctx = ctx.clone();
+    engine.register_fn("set", move |id: &str, value: rhai::Dynamic| -> () {
+        let v = dynamic_to_json(value);
+        rt2.set(id, v, &rt2_ctx).map_err(|e| format!("{e}")).unwrap_or(());
+    });
+    let rt3 = Arc::clone(&runtime);
+    let rt3_ctx = ctx.clone();
+    engine.register_fn("call", move |id: &str, input: rhai::Dynamic| -> rhai::Dynamic {
+        let input_value = dynamic_to_json(input);
+        let input_opt = if input_value.is_null() {
+            None
+        } else {
+            Some(input_value)
+        };
+        match rt3.call(id, input_opt, &rt3_ctx) {
+            Ok(v) => cell_value_to_dynamic(v),
+            Err(e) => {
+                let mut m = rhai::Map::new();
+                m.insert("__quilt_error".into(), true.into());
+                m.insert(
+                    "message".into(),
+                    format!("runtime.call failed: {e}").into(),
+                );
+                m.into()
+            }
+        }
+    });
+    let rt4 = Arc::clone(&runtime);
+    engine.register_fn("list", move || -> rhai::Array {
+        rt4.list().into_iter().map(|s| s.into()).collect()
+    });
 
     // Bind input.
     scope.push_dynamic("input", json_to_dynamic(input.cloned().unwrap_or(Value::Null)));
@@ -174,72 +226,6 @@ pub async fn evaluate_program(
 // ---------------------------------------------------------------------------
 // Runtime handle exposed to the script
 // ---------------------------------------------------------------------------
-
-fn make_runtime_value(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dynamic {
-    let mut map = Map::new();
-    map.insert(
-        "get".into(),
-        make_runtime_get(Arc::clone(&runtime), ctx.clone()).into(),
-    );
-    map.insert(
-        "set".into(),
-        make_runtime_set(Arc::clone(&runtime), ctx.clone()).into(),
-    );
-    map.insert(
-        "call".into(),
-        make_runtime_call(Arc::clone(&runtime), ctx.clone()).into(),
-    );
-    map.insert("list".into(), make_runtime_list(Arc::clone(&runtime)).into());
-    map.into()
-}
-
-fn make_runtime_get(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dynamic {
-    Dynamic::from(move |id: String| -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
-        match runtime.get(&id, &ctx) {
-            Ok(v) => Ok(cell_value_to_dynamic(v)),
-            Err(e) => Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
-                format!("runtime.get failed: {e}").into(),
-                rhai::Position::NONE,
-            ))),
-        }
-    })
-}
-
-fn make_runtime_set(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dynamic {
-    Dynamic::from(move |id: String, value: Dynamic| -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
-        let v = dynamic_to_json(value);
-        runtime
-            .set(&id, v, &ctx)
-            .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(format!("{e}").into(), rhai::Position::NONE)))
-            .map(|_| rhai::Dynamic::UNIT)
-    })
-}
-
-fn make_runtime_call(runtime: Arc<dyn ProgramRuntime>, ctx: CallerContext) -> Dynamic {
-    Dynamic::from(move |id: String, input: Dynamic| -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
-        let input_value = dynamic_to_json(input);
-        let input_opt = if input_value.is_null() {
-            None
-        } else {
-            Some(input_value)
-        };
-        match runtime.call(&id, input_opt, &ctx) {
-            Ok(v) => Ok(cell_value_to_dynamic(v)),
-            Err(e) => Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
-                format!("runtime.call failed: {e}").into(),
-                rhai::Position::NONE,
-            ))),
-        }
-    })
-}
-
-fn make_runtime_list(runtime: Arc<dyn ProgramRuntime>) -> Dynamic {
-    Dynamic::from(move || -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
-        let ids = runtime.list();
-        let arr: rhai::Array = ids.into_iter().map(|s| s.into()).collect();
-        Ok(rhai::Dynamic::from(arr))
-    })
-}
 
 fn cell_value_to_dynamic(v: CellValue) -> Dynamic {
     let mut map = Map::new();
@@ -379,8 +365,12 @@ fn dynamic_to_json(d: Dynamic) -> Value {
         let items: Vec<Value> = arr.into_iter().map(dynamic_to_json).collect();
         return Value::Array(items);
     }
-    if let Ok(map) = d.clone().into_typed_array::<Map>() {
-        let _ = map;
+    if let Some(map) = d.clone().try_cast::<Map>() {
+        let mut obj = serde_json::Map::new();
+        for (k, v) in map {
+            obj.insert(k.to_string(), dynamic_to_json(v));
+        }
+        return Value::Object(obj);
     }
     if let Ok(s) = d.into_string() {
         return Value::String(s);
@@ -471,7 +461,7 @@ mod tests {
         let rt = Arc::new(CountingRuntime {
             gets: Mutex::new(Vec::new()),
         });
-        let cell = program_cell("let v = runtime.get(\"a\"); v.data");
+        let cell = program_cell("let v = get(\"a\"); v.data");
         let v = evaluate_program(
             &cell,
             &CallerContext::default(),

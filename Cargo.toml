@@ -2,12 +2,8 @@
 resolver = "2"
 members = [
     "packages/core",
-    # MCP server and CLI are planned. They will be added once the
-    # engine in `quilt-core` is complete. Until then, only `core`
-    # builds. See the README for status.
-    #
-    # "packages/mcp",
-    # "packages/cli",
+    "packages/mcp",
+    "packages/cli",
 ]
 
 [workspace.package]
@@ -35,11 +31,11 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 # Expression evaluation
 rhai = { version = "1.20", features = ["sync", "serde"] }
 
-# MCP server (will be enabled once the engine lands)
-# rmcp = { version = "0.2", features = ["server", "transport-stdio", "macros"] }
+# MCP server
+rmcp = { version = "0.2", features = ["server", "transport-io", "macros"] }
 
-# CLI (will be enabled once the engine lands)
-# clap = { version = "4.5", features = ["derive"] }
+# CLI
+clap = { version = "4.5", features = ["derive"] }
 
 # Error handling
 thiserror = "1.0"

@@ -64,7 +64,7 @@ pub mod types;
 
 // Re-exports for convenience. Most users only need these.
 pub use crate::context::{
-    context_key, empty_context, eval_when, extend_context, Identity,
+    context_key, empty_context, eval_when, extend_context, Identity, IdentityKind,
 };
 pub use crate::types::CallerContext;
 pub use crate::engine::{EngineOptions, QuiltEngine, SubscriptionEvent, SubscriptionHandle};
