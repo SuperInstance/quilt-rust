@@ -12,7 +12,7 @@
 [![TypeScript port](https://img.shields.io/badge/TypeScript-canonical-3178c6)](https://github.com/superinstance/quilt)
 [![Status](https://img.shields.io/badge/status-v0.2.0-brightgreen)](https://github.com/superinstance/quilt-rust)
 
-**[Live simulator ⚡](https://superinstance.github.io/quilt/landing/simulator.html)** · **[TypeScript version →](https://github.com/superinstance/quilt)** · **[Read the manifesto →](https://github.com/superinstance/quilt/blob/main/docs/manifesto.md)**
+**[Quilt Live ⚡](https://superinstance.github.io/quilt/landing/quilt-live.html)** · **[Simulator](https://superinstance.github.io/quilt/landing/simulator.html)** · **[TypeScript version →](https://github.com/superinstance/quilt)** · **[Read the manifesto →](https://github.com/superinstance/quilt/blob/main/docs/manifesto.md)**
 
 ---
 
