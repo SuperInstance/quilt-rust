@@ -12,7 +12,87 @@
 [![TypeScript port](https://img.shields.io/badge/TypeScript-canonical-3178c6)](https://github.com/superinstance/quilt)
 [![Status](https://img.shields.io/badge/status-v0.2.0-brightgreen)](https://github.com/superinstance/quilt-rust)
 
-**[Quilt Live ⚡](https://superinstance.github.io/quilt/landing/quilt-live.html)** · **[Simulator](https://superinstance.github.io/quilt/landing/simulator.html)** · **[TypeScript version →](https://github.com/superinstance/quilt)** · **[Read the manifesto →](https://github.com/superinstance/quilt/blob/main/docs/manifesto.md)**
+**[Quilt Live ⚡](https://superinstance.github.io/quilt/landing/quilt-live.html)** · **[Studio 🎨](https://superinstance.github.io/quilt/landing/studio.html)** · **[Showcase 🌟](https://superinstance.github.io/quilt/landing/showcase.html)** · **[TypeScript version →](https://github.com/superinstance/quilt)** · **[Read the manifesto →](https://github.com/superinstance/quilt/blob/main/docs/manifesto.md)**
+
+---
+
+## ⚡ See it in 30 seconds
+
+```rust
+use quilt_core::{QuiltEngine, CellKind, CellValue};
+
+let mut engine = QuiltEngine::new();
+
+// Define three cells.
+engine.define("sensor.temp",  CellKind::Sensor,  CellValue::Float(22.0))?;
+engine.define("led.on",       CellKind::Formula, CellValue::None)?;
+engine.define("actuator.led", CellKind::Io,      CellValue::Bool(false))?;
+
+// Wire them.
+engine.add_dep("led.on", "sensor.temp")?;
+
+// Run forever. Reactive. Sync. Native.
+loop {
+    let temp = dht22.read();
+    engine.set("sensor.temp", CellValue::Float(temp))?;
+    let on = temp > 25.0;
+    engine.set("led.on", CellValue::Bool(on))?;
+    engine.set("actuator.led", CellValue::Bool(on))?;
+    delay.delay_ms(1000);
+}
+```
+
+That's a 3-cell reactive system compiled to a single binary, ~3 MB stripped, no runtime, no GC, no Node.js. Drop it on a Raspberry Pi, a Graviton, a serverless function, or a bare-metal target.
+
+**→ [Open Quilt Live in your browser](https://superinstance.github.io/quilt/landing/quilt-live.html)** (works without installing Rust)
+
+---
+
+## 🎬 The 8 cell kinds
+
+```rust
+match cell.kind {
+    CellKind::Value    => /* static value */,
+    CellKind::Formula  => /* reactive expression */,
+    CellKind::Program  => /* sandboxed rhai script */,
+    CellKind::Sensor   => /* polled input */,
+    CellKind::Api      => /* outbound call */,
+    CellKind::Listener => /* fires on change */,
+    CellKind::Router   => /* caller-context dispatch */,
+    CellKind::Io       => /* physical port */,
+}
+```
+
+The vocabulary is the same as the TypeScript version. The types are stronger. The runtime is sync. Async happens at the boundary.
+
+---
+
+## 🏗️ Architecture
+
+```
+   ┌──────────────────────────────────────────────────────────────┐
+   │                      your binary                             │
+   │                                                              │
+   │   ┌─────────────┐  ┌─────────────┐  ┌──────────────────────┐  │
+   │   │  quilt-core  │  │  quilt-tui  │  │  quilt-web (axum)    │  │
+   │   │             │  │             │  │                      │  │
+   │   │   engine    │  │  terminal   │  │   HTTP + SSE         │  │
+   │   │   parse     │─▶│  UI         │  │   live updates       │  │
+   │   │   eval      │  │             │  │   cell browser       │  │
+   │   │   reactive  │  │             │  │                      │  │
+   │   └─────────────┘  └─────────────┘  └──────────────────────┘  │
+   │            │                                                │
+   │            ▼                                                │
+   │   ┌──────────────────────────────────────────────────────┐  │
+   │   │  std::sync::Arc<QuiltEngine>                         │  │
+   │   │  Send + 'static effectful evaluators                 │  │
+   │   │  Tokio at the boundary, sync at the core             │  │
+   │   └──────────────────────────────────────────────────────┘  │
+   │                                                              │
+   └──────────────────────────────────────────────────────────────┘
+```
+
+Same engine, two front-ends: a TUI (crossterm) and a web UI (axum + Server-Sent Events). Async happens at the boundary; the engine itself is fully synchronous, which means Send + 'static propagates naturally and lifetimes just work.
 
 ---
 
