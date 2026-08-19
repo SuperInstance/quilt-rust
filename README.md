@@ -428,6 +428,7 @@ cargo build --release
 | See **10 recipes** for common patterns                  | [docs/recipes.md](https://github.com/superinstance/quilt/blob/main/docs/recipes.md) |
 | Compare to **n8n, LangGraph, Observable, Excel**         | [docs/comparison.md](https://github.com/superinstance/quilt/blob/main/docs/comparison.md) |
 | Embed Quilt in **TypeScript** (your app is a JS app)    | [superinstance/quilt](https://github.com/superinstance/quilt#install) |
+| **Try Quilt in a single HTML file** (no install, portable) | **[superinstance/quilt-live](https://github.com/superinstance/quilt-live)** — open one file, save state as cookie or downloadable .html |
 | **Report a bug** in the Rust port                        | [issues](https://github.com/superinstance/quilt-rust/issues) |
 
 ---
