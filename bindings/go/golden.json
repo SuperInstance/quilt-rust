@@ -1,0 +1,134 @@
+{
+  "chains": {
+    "ambient.light": "b8e0348014b8759e8e71c69cdf13865abb9ba96f316a14bc8203882b92bea3e8",
+    "fahrenheit": "e091c1060ccd3c991dba761539a7da07eabdaa60e4e41ddf73e0186fed38134e",
+    "is_dark": "b80043f4ff9fea5c9e46603b0cb4591a5ee63a99a2a7a6755167b2a8b35cfca5",
+    "light.state": "8a52138726c336906334f82b70cf3080c4d9ab30e8d0a69058ee928833b4afe1",
+    "temp": "59c031a5b93ece6a7bfb2ef0e6b08b4ecd88aab7a2d6d77449396ef42c48cde3",
+    "threshold": "958478cc92fb732eb3ad8afd6b0c7cfb0e6ccb960b5408dd28761ccddebf6d72"
+  },
+  "distances": {
+    "d_arr": 0.3333333333333333,
+    "d_eq": 0.0,
+    "d_null": 1.0,
+    "d_num": 45.0,
+    "d_obj": 1.0,
+    "d_str": 1.0
+  },
+  "edges": {
+    "ambient.light": [
+      {
+        "after": 120,
+        "before": 400,
+        "cell": "ambient.light",
+        "chain": "b8e0348014b8759e8e71c69cdf13865abb9ba96f316a14bc8203882b92bea3e8",
+        "delta": 280.0,
+        "imbalance": 280.0,
+        "provenance": "ca2914a7b800a7dbf20f442124698f8e09a3f04cb0ede3792de373d398a0d347",
+        "ts": 3000,
+        "v": 1
+      }
+    ],
+    "fahrenheit": [
+      {
+        "after": 69.8,
+        "before": null,
+        "cell": "fahrenheit",
+        "chain": "5300323750694a7e2d141de49c918e77de197073ee54afc3ab9ebf6deaa6e60f",
+        "delta": 1.0,
+        "imbalance": 1.0,
+        "provenance": "d3372a13acd9323175dc953ae69b33d4ce0ec9ebda551c33144c0f87d4240134",
+        "ts": 1000,
+        "v": 1
+      },
+      {
+        "after": 86.0,
+        "before": 69.8,
+        "cell": "fahrenheit",
+        "chain": "e091c1060ccd3c991dba761539a7da07eabdaa60e4e41ddf73e0186fed38134e",
+        "delta": 16.200000000000003,
+        "imbalance": 16.200000000000003,
+        "provenance": "4d28110f24e14569f84b3f0e5066409af5c9710970d8123e2f64f7b19235fa4d",
+        "ts": 2000,
+        "v": 1
+      }
+    ],
+    "is_dark": [
+      {
+        "after": false,
+        "before": null,
+        "cell": "is_dark",
+        "chain": "32d492ecdbfcc298134d517194dd53e8cd8fc502d2ff83b7f0a7830621f0ec75",
+        "delta": 1.0,
+        "imbalance": 1.0,
+        "provenance": "a4c6cef866f1e40ce8a8cc2e2b3448ece98ba45f49bd7836c6ff132729955345",
+        "ts": 1000,
+        "v": 1
+      },
+      {
+        "after": true,
+        "before": false,
+        "cell": "is_dark",
+        "chain": "b80043f4ff9fea5c9e46603b0cb4591a5ee63a99a2a7a6755167b2a8b35cfca5",
+        "delta": 1.0,
+        "imbalance": 1.0,
+        "provenance": "adb634235fd2bca9e221ce8d041105b2f53aefd135f867d50cff4755ca58f24f",
+        "ts": 3000,
+        "v": 1
+      }
+    ],
+    "light.state": [
+      {
+        "after": "OFF",
+        "before": null,
+        "cell": "light.state",
+        "chain": "633419b35651772d1fd3806340d16de72d57681d68febd407d5efdd66132ea66",
+        "delta": 1.0,
+        "imbalance": 1.0,
+        "provenance": "3f29a2fdb3bbed33371463fba810f2d8d1a5bc81f25d05e67f81789d838ad5d1",
+        "ts": 1000,
+        "v": 1
+      },
+      {
+        "after": "ON",
+        "before": "OFF",
+        "cell": "light.state",
+        "chain": "8a52138726c336906334f82b70cf3080c4d9ab30e8d0a69058ee928833b4afe1",
+        "delta": 1.0,
+        "imbalance": 1.0,
+        "provenance": "ceb646282dbe1ffca0ef9150ae9df6cb892f51ccf2c91c8ffcbe69a5135178b1",
+        "ts": 3000,
+        "v": 1
+      }
+    ],
+    "temp": [
+      {
+        "after": 30,
+        "before": 21,
+        "cell": "temp",
+        "chain": "59c031a5b93ece6a7bfb2ef0e6b08b4ecd88aab7a2d6d77449396ef42c48cde3",
+        "delta": 9.0,
+        "imbalance": 9.0,
+        "provenance": "67607de5204499d2f9b9553b6735e838ece6fd7c0f13ea8fa4eaac1556ccee1d",
+        "ts": 2000,
+        "v": 1
+      }
+    ],
+    "threshold": []
+  },
+  "ops": [
+    "eval_all ts=1000",
+    "set temp = 30 ts=2000",
+    "set ambient.light = 120 ts=3000"
+  ],
+  "sheet_chain": "c5982e722b03f76a0ad93f60493b321b524b4e90fbae7f7781591b3aaeecd655",
+  "spec": "quilt-go-golden/1",
+  "values": {
+    "ambient.light": 120,
+    "fahrenheit": 86.0,
+    "is_dark": true,
+    "light.state": "ON",
+    "temp": 30,
+    "threshold": 200
+  }
+}

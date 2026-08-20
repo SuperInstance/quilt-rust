@@ -85,7 +85,7 @@ const GENESIS_KIND: &str = "quilt-cell-ledger/1";
 /// reproduces the same chain hashes bit-for-bit by implementing the
 /// same standard, the same move the polyformal kernel made with its
 /// edge function.
-mod sha256 {
+pub mod sha256 {
     /// Round constants (first 32 bits of the fractional parts of the
     /// cube roots of the first 64 primes).
     const K: [u32; 64] = [
@@ -190,7 +190,7 @@ mod sha256 {
 /// serde_json semantics: integers as integers, floats as Rust's
 /// shortest-round-trip form. This exact form is pinned in
 /// `docs/cell-ledger.md` so ports reproduce the chain bit-for-bit.
-fn canonical_json(v: &Value) -> String {
+pub fn canonical_json(v: &Value) -> String {
     let mut out = String::new();
     write_canonical(v, &mut out);
     out
@@ -233,13 +233,12 @@ fn write_canonical(v: &Value, out: &mut String) {
 }
 
 fn canonical_number(n: &serde_json::Number) -> String {
-    if let Some(i) = n.as_i64() {
-        i.to_string()
-    } else if let Some(u) = n.as_u64() {
-        u.to_string()
-    } else {
-        format!("{}", n.as_f64().unwrap_or(0.0))
-    }
+    // serde_json / ryū semantics, as pinned in docs/cell-ledger.md §4:
+    // integers render as integers, floats as the shortest-round-trip
+    // decimal that keeps the float marker (85.0 -> "85.0", not "85").
+    // Preserving the float/int distinction is what lets JS/Python ports
+    // stay on-chain bit-for-bit.
+    n.to_string()
 }
 
 // ---------------------------------------------------------------------------

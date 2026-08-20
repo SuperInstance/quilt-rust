@@ -1,0 +1,206 @@
+{
+ "contract": "quilt-compat/1",
+ "spec": {
+  "edge_schema_v": 1,
+  "reference_tier": "rust (quilt-core: ledger.rs + engine.rs)",
+  "canonical_json": "compact; object keys sorted by UTF-8 byte order; integers as integers; floats as shortest-round-trip decimal (ryu); strings via standard JSON escaping",
+  "wire_ts": "float milliseconds since unix epoch",
+  "provenance": "sha256_hex(canonical_json(inputs)) where inputs is the JSON array of input values in dependency-address order",
+  "imbalance_prior": "persistence (predict(before) = before); null when no prior exists - never fake a number"
+ },
+ "tolerances_reference_tier": {
+  "value_read": 0.0,
+  "formula_eval": 1e-12,
+  "propagation_order": 0.0,
+  "edge": 1e-12,
+  "chain_hash": "bit-for-bit",
+  "reconcile": 1e-12
+ },
+ "sheet": {
+  "id": "bilge-reflex",
+  "description": "The golden sheet: a sensor, a threshold, two formulas, a status value. Every cell id, kind, and dependency edge below is part of the contract.",
+  "cells": [
+   {
+    "id": "bilge.level",
+    "kind": "sensor",
+    "source": "simulated",
+    "default": 40.0
+   },
+   {
+    "id": "bilge.threshold",
+    "kind": "value",
+    "value": 80.0
+   },
+   {
+    "id": "pump.should_run",
+    "kind": "formula",
+    "expr": "=bilge.level >= bilge.threshold"
+   },
+   {
+    "id": "pump.relay_cmd",
+    "kind": "formula",
+    "expr": "=clamp((bilge.level - bilge.threshold) * 0.5, -30.0, 30.0)"
+   },
+   {
+    "id": "status",
+    "kind": "value",
+    "value": "idle"
+   }
+  ]
+ },
+ "graph": {
+  "bilge.level": [],
+  "bilge.threshold": [],
+  "pump.should_run": ["bilge.level", "bilge.threshold"],
+  "pump.relay_cmd": ["bilge.level", "bilge.threshold"],
+  "status": []
+ },
+ "op_a_value_read": [
+  {
+   "cell": "bilge.threshold",
+   "expect": 80.0
+  },
+  {
+   "cell": "status",
+   "expect": "idle"
+  },
+  {
+   "cell": "bilge.level",
+   "expect": 40.0
+  }
+ ],
+ "op_b_formula_eval": {
+  "initial": [
+   {
+    "cell": "pump.should_run",
+    "expect": false
+   },
+   {
+    "cell": "pump.relay_cmd",
+    "expect": -20.0
+   }
+  ],
+  "after_push": {
+   "cell": "bilge.level",
+   "value": 85.0
+  },
+  "post": [
+   {
+    "cell": "bilge.level",
+    "expect": 85.0
+   },
+   {
+    "cell": "pump.should_run",
+    "expect": true
+   },
+   {
+    "cell": "pump.relay_cmd",
+    "expect": 2.5
+   }
+  ]
+ },
+ "op_c_propagation": {
+  "mutate": {
+   "cell": "bilge.level",
+   "value": 85.0
+  },
+  "expected_order": ["bilge.level", "pump.relay_cmd", "pump.should_run"],
+  "engine_dependency_graph_must_match": {
+   "pump.should_run": ["bilge.level", "bilge.threshold"],
+   "pump.relay_cmd": ["bilge.level", "bilge.threshold"]
+  }
+ },
+ "op_d_edge": [
+  {
+   "name": "scalar-bilge-edge",
+   "cell": "bilge.level",
+   "ts": 2000.0,
+   "before": 40.0,
+   "after": 85.0,
+   "inputs": [85.0],
+   "expect": {
+    "delta": 45.0,
+    "imbalance": 45.0,
+    "provenance": "c488fc2a34cb70576fdb32ef7b72b0c98ee4d382813222ab518d546e7dff3d7c"
+   }
+  },
+  {
+   "name": "vector-field-edge",
+   "cell": "room.field",
+   "ts": 3000.5,
+   "before": [0.25, -0.125, 0.5],
+   "after": [0.375, -0.0625, 0.625],
+   "inputs": [[0.375, -0.0625, 0.625]],
+   "expect": {
+    "delta": [0.125, 0.0625, 0.125],
+    "imbalance": 0.1875,
+    "provenance": "9a92df192679e9f0510defabf6e7431af3cc6ed8bc0dafbf49e19d7473e55224"
+   }
+  },
+  {
+   "name": "null-prior-first-edge",
+   "cell": "fresh.sensor",
+   "ts": 5000.0,
+   "before": null,
+   "after": 7.0,
+   "inputs": [7.0],
+   "expect": {
+    "delta": null,
+    "imbalance": null,
+    "provenance": "e8980b1b4ea755da488add3544bf1c538901b74c0551a58de69a199baa5c4aeb"
+   }
+  }
+ ],
+ "op_e_chain": {
+  "transcript": {
+   "cell": "bilge.level",
+   "genesis": 40.0,
+   "genesis_ts": 1000.0,
+   "records": [
+    {
+     "input": 85.0,
+     "output": 85.0,
+     "ts": 2000.0
+    },
+    {
+     "input": 87.5,
+     "output": 87.5,
+     "ts": 3000.0
+    },
+    {
+     "input": 87.5,
+     "output": 87.5,
+     "ts": 4000.0
+    }
+   ]
+  },
+  "entries": [
+   {
+    "seq": 1,
+    "prev_hash": "470bc52774d2c173c46c5b0a8733676500fbc3b0b0cbf6d3e57662ff2ac4c1d3",
+    "hash": "00b88886f4a22747e7e546144d18af42605c34e2ba07d3040ba18d6f24ce3f30"
+   },
+   {
+    "seq": 2,
+    "prev_hash": "00b88886f4a22747e7e546144d18af42605c34e2ba07d3040ba18d6f24ce3f30",
+    "hash": "3f3a94eb2e88c0e3bddfc8dfcb5554af2fe7b5cd80e20ac0ff972ae7a31caa3d"
+   },
+   {
+    "seq": 3,
+    "prev_hash": "3f3a94eb2e88c0e3bddfc8dfcb5554af2fe7b5cd80e20ac0ff972ae7a31caa3d",
+    "hash": "4a7ad64830d5c2a843bf7b6f4d7253d43f2603753611fe58f0bb7c4d87ea62b8"
+   }
+  ],
+  "chain_hash": "4a7ad64830d5c2a843bf7b6f4d7253d43f2603753611fe58f0bb7c4d87ea62b8",
+  "reconcile": {
+   "entries": 3,
+   "open_inputs": 0,
+   "matched_pairs": 3,
+   "chain_intact": true,
+   "continuity_intact": true,
+   "balanced": true,
+   "total_surprise": 47.5,
+   "mean_surprise": 15.833333333333334
+  }
+ }
+}

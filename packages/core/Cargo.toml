@@ -34,3 +34,7 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[test]]
+name = "quilt_compat_conformance"
+path = "../../compat/conformance_test.rs"
