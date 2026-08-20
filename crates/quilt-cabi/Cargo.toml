@@ -1,0 +1,20 @@
+[package]
+name = "quilt-cabi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Stable C ABI over the quilt-core sync engine and ledger — one native core, N language bindings."
+
+[lib]
+name = "quilt_cabi"
+# cdylib: libquilt_cabi.so for dlopen / ctypes / cgo / ccall / FFI.
+# staticlib: libquilt_cabi.a for static linking into a host binary.
+# rlib: so cargo test (and downstream Rust users) can link the same symbols.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+quilt-core = { path = "../../packages/core" }
+serde_json = { workspace = true }
+once_cell = { workspace = true }

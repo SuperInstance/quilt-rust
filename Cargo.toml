@@ -6,6 +6,7 @@ members = [
     "packages/cli",
     "packages/tui",
     "packages/web",
+    "crates/quilt-cabi",
 ]
 
 [workspace.package]
