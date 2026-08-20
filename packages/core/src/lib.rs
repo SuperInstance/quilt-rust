@@ -59,6 +59,7 @@ pub mod cells;
 pub mod context;
 pub mod engine;
 pub mod error;
+pub mod ledger;
 pub mod parser;
 pub mod types;
 
@@ -69,6 +70,10 @@ pub use crate::context::{
 pub use crate::types::CallerContext;
 pub use crate::engine::{EngineOptions, QuiltEngine, SubscriptionEvent, SubscriptionHandle};
 pub use crate::error::{Error, Result};
+pub use crate::ledger::{
+    CellLedger, ChainAudit, Delta, EntrySide, Hash, LedgerEntry, LedgerOrigin, PendingInput,
+    Posting, Provenance, Reconciliation, Replay,
+};
 pub use crate::parser::{parse_sheet, serialize_sheet, validate_sheet};
 pub use crate::types::{
     Cell, CellDef, CellError, CellId, CellKind, CellRef, CellStatus, CellValue,
