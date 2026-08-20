@@ -1,0 +1,33 @@
+[package]
+name = "quilt-core-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "WASM-compatible sync core — value/formula evaluation plus the cell ledger, for wasm32-unknown-unknown (the web tier)."
+
+[lib]
+name = "quilt_core_wasm"
+# cdylib: produces the .wasm artifact for the web tier.
+# rlib: so cargo test (and downstream Rust users) can link the same code.
+crate-type = ["cdylib", "rlib"]
+
+# Hard rule for this crate: wasm-compatible deps only. serde + serde_json
+# compile cleanly for wasm32-unknown-unknown (pure Rust, no clock, no rng,
+# no net, no threads). The ledger brings its own SHA-256 (see the
+# single-sourced ledger module), so no sha2 dependency either.
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Host-side conformance testing only. Never compiled for the wasm target
+# (cargo does not build dev-dependencies for `cargo build --target ...`).
+# Used to prove the wasm core's chain hashes are bit-for-bit identical to
+# the native reference tier's (packages/core).
+[dev-dependencies]
+quilt-core = { path = "../../packages/core" }
+
+[[test]]
+name = "wasm_conformance"
+path = "tests/wasm_conformance.rs"
