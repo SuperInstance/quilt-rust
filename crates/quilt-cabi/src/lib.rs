@@ -81,8 +81,11 @@ static LEDGERS: Lazy<Mutex<HashMap<String, CellLedger>>> =
 
 thread_local! {
     /// The last error message produced on this thread. Borrowed by
-    /// `quilt_last_error`; valid until the next library call.
-    static LAST_ERROR: RefCell<String> = RefCell::new(String::new());
+    /// `quilt_last_error`; valid until the next library call. Stored as a
+    /// `CString` so `as_ptr()` is always a valid NUL-terminated C string,
+    /// including the empty case (a bare `String::as_ptr()` is a dangling
+    /// non-null pointer when empty, and is never NUL-terminated otherwise).
+    static LAST_ERROR: RefCell<CString> = RefCell::new(CString::new("").unwrap());
 }
 
 // ---------------------------------------------------------------------------
@@ -92,11 +95,13 @@ thread_local! {
 type FfiResult<T> = Result<T, String>;
 
 fn clear_err() {
-    LAST_ERROR.with(|slot| slot.borrow_mut().clear());
+    LAST_ERROR.with(|slot| *slot.borrow_mut() = CString::new("").unwrap());
 }
 
 fn set_err(msg: impl Into<String>) {
-    LAST_ERROR.with(|slot| *slot.borrow_mut() = msg.into());
+    let c = CString::new(msg.into())
+        .unwrap_or_else(|_| CString::new("quilt-cabi: error message contained an interior NUL").unwrap());
+    LAST_ERROR.with(|slot| *slot.borrow_mut() = c);
 }
 
 /// Run `f`, converting any Rust panic into an `Err` — the C boundary must
@@ -462,5 +467,5 @@ pub extern "C" fn quilt_string_free(s: *mut c_char) {
 /// thread; never `NULL`. Copy it if you need it beyond the next call.
 #[no_mangle]
 pub extern "C" fn quilt_last_error() -> *const c_char {
-    LAST_ERROR.with(|slot| slot.borrow().as_ptr() as *const c_char)
+    LAST_ERROR.with(|slot| slot.borrow().as_ptr())
 }

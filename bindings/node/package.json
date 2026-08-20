@@ -1,0 +1,14 @@
+{
+  "name": "quilt-cabi-node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Node.js binding for quilt over the C ABI (libquilt_cabi.so) via koffi — the web/connecting tier's runtime binding. Golden conformance: node test.mjs",
+  "main": "quilt-ffi.mjs",
+  "scripts": {
+    "test": "node test.mjs"
+  },
+  "dependencies": {
+    "koffi": "^3.1.6"
+  }
+}
