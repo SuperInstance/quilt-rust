@@ -936,6 +936,20 @@ cargo build --release
 
 ---
 
+## Gallery
+
+<p align="center">
+  <img src="assets/images/quilt-calm-v3.jpg" alt="A calm, settled quilt of cells — the grid at rest, every address a steady honey-amber window against midnight navy" width="720"><br>
+  <em>The same sheet, at rest — every cell settled, every address answering. Calm is what a compiled system sounds like.</em>
+</p>
+
+<p align="center">
+  <img src="assets/images/quilt-ts-sdxl-deck.jpg" alt="The quilt deck, SDXL rendering — cell cards spread across the dark, each card a small lit window, brass traces between them" width="720"><br>
+  <em>The deck, SDXL edition — the sibling rendering of the TypeScript repo's FLUX deck. Same sheet format, same eight kinds, two engines.</em>
+</p>
+
+---
+
 ## Contributing
 
 We welcome PRs that:
