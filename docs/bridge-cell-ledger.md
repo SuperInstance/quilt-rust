@@ -2,7 +2,8 @@
 
 *2026-08-22 · companion to [cell-ledger.md](cell-ledger.md),
 [field-edge-ledger-bridge.md](field-edge-ledger-bridge.md),
-[codespace-cortex.md](codespace-cortex.md).*
+[codespace-cortex.md](codespace-cortex.md),
+[cohesion-and-fascia.md](cohesion-and-fascia.md).*
 
 This repo specifies the ledger; the **elephant** project
 (`projects/elephant`, commit `8440e4d`) now *produces* for it, and the

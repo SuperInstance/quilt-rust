@@ -1,7 +1,8 @@
 # The Field-Edge / Ledger Bridge — `imbalance` IS the field-edge
 
 *Companion to [fleet-as-fractal-jepa.md](fleet-as-fractal-jepa.md) and
-[cell-ledger.md](cell-ledger.md). Proof-of-identity prototype:
+[cell-ledger.md](cell-ledger.md); the tissue-layer follow-up is
+[cohesion-and-fascia.md](cohesion-and-fascia.md). Proof-of-identity prototype:
 `crates/field-edge-bridge/bridge_demo.py` (numpy-only, self-checking against
 `compat/golden.json`). Every identity below is verified there to 1e-12.*
 
