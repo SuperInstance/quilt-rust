@@ -22,13 +22,12 @@
 //! - Claude Code, Cursor, and any other MCP-compatible client.
 //! - Other agents that want to call Quilt cells as tools.
 
-use std::future::Future;
 use std::sync::Arc;
 
 use anyhow::Result;
 use quilt_core::{parse_sheet, CallerContext, QuiltEngine};
 use rmcp::{
-    handler::server::{router::tool::ToolRouter, tool::Parameters},
+    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
     schemars, tool, tool_handler, tool_router, ServerHandler, ServiceExt,
 };
@@ -201,7 +200,7 @@ impl QuiltMcpServer {
                 .collect::<Vec<_>>(),
         )
         .unwrap_or_default();
-        Ok(CallToolResult::success(vec![Content::text(body)]))
+        Ok(CallToolResult::success(vec![ContentBlock::text(body)]))
     }
 
     /// Read a cell's current value.
@@ -215,10 +214,10 @@ impl QuiltMcpServer {
     ) -> Result<CallToolResult, ErrorData> {
         let ctx = build_context(input.row, input.column, input.identity, input.identity_type);
         match self.engine.get(&input.id, ctx) {
-            Ok(v) => Ok(CallToolResult::success(vec![Content::text(
+            Ok(v) => Ok(CallToolResult::success(vec![ContentBlock::text(
                 serde_json::to_string_pretty(&v.data).unwrap_or_default(),
             )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+            Err(e) => Ok(CallToolResult::error(vec![ContentBlock::text(format!(
                 "error: {}",
                 e
             ))])),
@@ -236,12 +235,12 @@ impl QuiltMcpServer {
     ) -> Result<CallToolResult, ErrorData> {
         let ctx = build_context(None, None, None, None);
         match self.engine.set(&input.id, input.value.clone(), ctx) {
-            Ok(()) => Ok(CallToolResult::success(vec![Content::text(format!(
+            Ok(()) => Ok(CallToolResult::success(vec![ContentBlock::text(format!(
                 "set {} = {}",
                 input.id,
                 serde_json::to_string(&input.value).unwrap_or_default()
             ))])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+            Err(e) => Ok(CallToolResult::error(vec![ContentBlock::text(format!(
                 "error: {}",
                 e
             ))])),
@@ -259,10 +258,10 @@ impl QuiltMcpServer {
     ) -> Result<CallToolResult, ErrorData> {
         let ctx = build_context(input.row.clone(), input.column.clone(), None, None);
         match self.engine.call(&input.id, input.input.clone(), ctx) {
-            Ok(v) => Ok(CallToolResult::success(vec![Content::text(
+            Ok(v) => Ok(CallToolResult::success(vec![ContentBlock::text(
                 serde_json::to_string_pretty(&v.data).unwrap_or_default(),
             )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+            Err(e) => Ok(CallToolResult::error(vec![ContentBlock::text(format!(
                 "error: {}",
                 e
             ))])),
@@ -280,11 +279,11 @@ impl QuiltMcpServer {
     ) -> Result<CallToolResult, ErrorData> {
         let _ctx = build_context(None, None, None, None);
         match self.engine.push(&input.id, input.data.clone()) {
-            Ok(()) => Ok(CallToolResult::success(vec![Content::text(format!(
+            Ok(()) => Ok(CallToolResult::success(vec![ContentBlock::text(format!(
                 "pushed to {}",
                 input.id
             ))])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+            Err(e) => Ok(CallToolResult::error(vec![ContentBlock::text(format!(
                 "error: {}",
                 e
             ))])),
@@ -296,53 +295,45 @@ impl QuiltMcpServer {
 // ServerHandler
 // =============================================================================
 
-#[tool_handler]
+#[tool_handler(router = self.tool_router.clone())]
 impl ServerHandler for QuiltMcpServer {
     fn get_info(&self) -> ServerInfo {
         let cell_count = self.engine.list_cells().len();
-        ServerInfo {
-            protocol_version: ProtocolVersion::V_2024_11_05,
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: Implementation {
-                name: format!("quilt-mcp ({} cells)", cell_count),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-            },
-            instructions: Some(
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_protocol_version(ProtocolVersion::V_2024_11_05)
+            .with_server_info(Implementation::new(
+                format!("quilt-mcp ({} cells)", cell_count),
+                env!("CARGO_PKG_VERSION"),
+            ))
+            .with_instructions(
                 "Quilt MCP — every cell in the loaded sheet is exposed as a tool. \
                  Use `cells_list` to see what's available, then call any cell with \
                  `cell_get` (read), `cell_set` (write), `cell_call` (capability), \
-                 or `cell_push` (sensor/IO input)."
-                    .to_string(),
-            ),
-        }
+                 or `cell_push` (sensor/IO input).",
+            )
     }
 
     async fn list_resources(
         &self,
-        _request: Option<PaginatedRequestParam>,
+        _request: Option<PaginatedRequestParams>,
         _context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
         let cell_count = self.engine.list_cells().len();
         let sheet_id = self.engine.id().to_string();
-        let raw = RawResource {
-            uri: format!("quilt://sheet/{}", sheet_id),
-            name: format!("Quilt sheet: {} ({} cells)", sheet_id, cell_count),
-            description: Some("The current sheet's cells in YAML form.".to_string()),
-            mime_type: Some("application/x-yaml".to_string()),
-            size: None,
-        };
-        let resource = Resource::new(raw, None);
-        Ok(ListResourcesResult {
-            resources: vec![resource],
-            next_cursor: None,
-        })
+        let resource = Resource::new(
+            format!("quilt://sheet/{}", sheet_id),
+            format!("Quilt sheet: {} ({} cells)", sheet_id, cell_count),
+        )
+        .with_description("The current sheet's cells in YAML form.")
+        .with_mime_type("application/x-yaml");
+        Ok(ListResourcesResult::with_all_items(vec![resource]))
     }
 
     async fn read_resource(
         &self,
-        request: ReadResourceRequestParam,
+        request: ReadResourceRequestParams,
         _context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> Result<ReadResourceResult, ErrorData> {
+    ) -> Result<ReadResourceResponse, ErrorData> {
         let uri = &request.uri;
         if uri.starts_with("quilt://sheet/") {
             let cells = self.engine.list_cells();
@@ -352,9 +343,7 @@ impl ServerHandler for QuiltMcpServer {
                 sheet_id,
                 cells.len()
             );
-            Ok(ReadResourceResult {
-                contents: vec![ResourceContents::text(body, uri)],
-            })
+            Ok(ReadResourceResult::new(vec![ResourceContents::text(body, uri)]).into())
         } else {
             Err(ErrorData::new(
                 ErrorCode::RESOURCE_NOT_FOUND,

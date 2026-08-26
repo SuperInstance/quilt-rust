@@ -36,7 +36,7 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 rhai = { version = "1.20", features = ["sync", "serde"] }
 
 # MCP server
-rmcp = { version = "0.2", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "3.1", features = ["server", "transport-io", "macros"] }
 
 # CLI
 clap = { version = "4.5", features = ["derive"] }
