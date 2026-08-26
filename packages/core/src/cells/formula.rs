@@ -48,7 +48,7 @@ use serde_json::Value;
 
 use crate::context::context_key;
 use crate::error::{Error, Result};
-use crate::types::{now_millis, Cell, CellId, CellStatus, CellValue, CallerContext};
+use crate::types::{now_millis, CallerContext, Cell, CellId, CellStatus, CellValue};
 
 /// An owned formula evaluator. Holds the compiled AST. Compiling once
 /// and re-running is much cheaper than re-parsing on every call when a
@@ -91,12 +91,10 @@ impl FormulaEngine {
 
         let mut engine = Engine::new();
         register_helpers(&mut engine);
-        let ast = engine
-            .compile(&rewritten)
-            .map_err(|e| Error::ScriptError {
-                cell: "<compile>".into(),
-                message: format!("could not compile formula: {e}"),
-            })?;
+        let ast = engine.compile(&rewritten).map_err(|e| Error::ScriptError {
+            cell: "<compile>".into(),
+            message: format!("could not compile formula: {e}"),
+        })?;
         Ok(Self {
             source: Arc::from(source),
             ast: Arc::new(ast),
@@ -106,11 +104,7 @@ impl FormulaEngine {
 
     /// Evaluate the compiled formula with a snapshot of cell values and
     /// a caller context.
-    pub fn eval(
-        &self,
-        cell_values: &HashMap<CellId, Value>,
-        ctx: &CallerContext,
-    ) -> Result<Value> {
+    pub fn eval(&self, cell_values: &HashMap<CellId, Value>, ctx: &CallerContext) -> Result<Value> {
         let mut engine = Engine::new();
         register_helpers(&mut engine);
 
@@ -125,8 +119,14 @@ impl FormulaEngine {
 
         // Build the `caller` object.
         let mut caller = Map::new();
-        caller.insert("row".into(), json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)));
-        caller.insert("column".into(), json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)));
+        caller.insert(
+            "row".into(),
+            json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)),
+        );
+        caller.insert(
+            "column".into(),
+            json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)),
+        );
         caller.insert(
             "sheet".into(),
             json_to_dynamic(ctx.sheet.clone().map(Value::String).unwrap_or(Value::Null)),
@@ -213,15 +213,18 @@ fn rewrite_known_ids(body: &str, known_ids: &[String]) -> String {
         }
         // Are we inside an existing `cells[...]` block? Track
         // bracket depth.
-        if chars[i] == 'c' && i + 5 < chars.len() && &body[i..i+5] == "cells" {
+        if chars[i] == 'c' && i + 5 < chars.len() && &body[i..i + 5] == "cells" {
             // Check it's followed by `[`.
             if i + 5 < chars.len() && chars[i + 5] == '[' {
                 out.push_str("cells[");
                 i += 6;
                 let mut depth = 1;
                 while i < chars.len() && depth > 0 {
-                    if chars[i] == '[' { depth += 1; }
-                    else if chars[i] == ']' { depth -= 1; }
+                    if chars[i] == '[' {
+                        depth += 1;
+                    } else if chars[i] == ']' {
+                        depth -= 1;
+                    }
                     out.push(chars[i]);
                     i += 1;
                 }
@@ -352,56 +355,126 @@ fn register_helpers(engine: &mut Engine) {
 // concrete types for `register_fn`, so we register one overload
 // per (name, arg type) combination.
 
-fn abs_i64_fn(x: i64) -> i64 { x.abs() }
-fn abs_f64_fn(x: f64) -> f64 { x.abs() }
-fn min_i64_fn(a: i64, b: i64) -> i64 { a.min(b) }
-fn min_f64_fn(a: f64, b: f64) -> f64 { a.min(b) }
-fn max_i64_fn(a: i64, b: i64) -> i64 { a.max(b) }
-fn max_f64_fn(a: f64, b: f64) -> f64 { a.max(b) }
-fn clamp_i64_fn(n: i64, lo: i64, hi: i64) -> i64 { n.clamp(lo, hi) }
-fn clamp_f64_fn(n: f64, lo: f64, hi: f64) -> f64 { n.clamp(lo, hi) }
+fn abs_i64_fn(x: i64) -> i64 {
+    x.abs()
+}
+fn abs_f64_fn(x: f64) -> f64 {
+    x.abs()
+}
+fn min_i64_fn(a: i64, b: i64) -> i64 {
+    a.min(b)
+}
+fn min_f64_fn(a: f64, b: f64) -> f64 {
+    a.min(b)
+}
+fn max_i64_fn(a: i64, b: i64) -> i64 {
+    a.max(b)
+}
+fn max_f64_fn(a: f64, b: f64) -> f64 {
+    a.max(b)
+}
+fn clamp_i64_fn(n: i64, lo: i64, hi: i64) -> i64 {
+    n.clamp(lo, hi)
+}
+fn clamp_f64_fn(n: f64, lo: f64, hi: f64) -> f64 {
+    n.clamp(lo, hi)
+}
 
 /// Array variants. Allow the user to write `max([a, b, c])` and
 /// `clamp([n, lo, hi])` in addition to the binary forms.
 fn min_array_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     let mut best: Option<f64> = None;
     for a in args {
-        let n = a.as_float().or_else(|_| a.as_int().map(|i| i as f64))
-            .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+        let n = a
+            .as_float()
+            .or_else(|_| a.as_int().map(|i| i as f64))
+            .map_err(|e| {
+                Box::new(rhai::EvalAltResult::ErrorRuntime(
+                    e.to_string().into(),
+                    rhai::Position::NONE,
+                ))
+            })?;
         best = Some(best.map_or(n, |b| b.min(n)));
     }
     best.map(rhai::Dynamic::from).ok_or_else(|| {
-        Box::new(rhai::EvalAltResult::ErrorRuntime("min() requires at least one argument".into(), rhai::Position::NONE))
+        Box::new(rhai::EvalAltResult::ErrorRuntime(
+            "min() requires at least one argument".into(),
+            rhai::Position::NONE,
+        ))
     })
 }
 fn max_array_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     let mut best: Option<f64> = None;
     for a in args {
-        let n = a.as_float().or_else(|_| a.as_int().map(|i| i as f64))
-            .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+        let n = a
+            .as_float()
+            .or_else(|_| a.as_int().map(|i| i as f64))
+            .map_err(|e| {
+                Box::new(rhai::EvalAltResult::ErrorRuntime(
+                    e.to_string().into(),
+                    rhai::Position::NONE,
+                ))
+            })?;
         best = Some(best.map_or(n, |b| b.max(n)));
     }
     best.map(rhai::Dynamic::from).ok_or_else(|| {
-        Box::new(rhai::EvalAltResult::ErrorRuntime("max() requires at least one argument".into(), rhai::Position::NONE))
+        Box::new(rhai::EvalAltResult::ErrorRuntime(
+            "max() requires at least one argument".into(),
+            rhai::Position::NONE,
+        ))
     })
 }
-fn clamp_array_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
+fn clamp_array_fn(
+    args: rhai::Array,
+) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     if args.len() != 3 {
-        return Err(Box::new(rhai::EvalAltResult::ErrorRuntime("clamp(arr) needs [n, lo, hi]".into(), rhai::Position::NONE)));
+        return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
+            "clamp(arr) needs [n, lo, hi]".into(),
+            rhai::Position::NONE,
+        )));
     }
-    let n = args[0].as_float().or_else(|_| args[0].as_int().map(|i| i as f64))
-        .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
-    let lo = args[1].as_float().or_else(|_| args[1].as_int().map(|i| i as f64))
-        .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
-    let hi = args[2].as_float().or_else(|_| args[2].as_int().map(|i| i as f64))
-        .map_err(|e| Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE)))?;
+    let n = args[0]
+        .as_float()
+        .or_else(|_| args[0].as_int().map(|i| i as f64))
+        .map_err(|e| {
+            Box::new(rhai::EvalAltResult::ErrorRuntime(
+                e.to_string().into(),
+                rhai::Position::NONE,
+            ))
+        })?;
+    let lo = args[1]
+        .as_float()
+        .or_else(|_| args[1].as_int().map(|i| i as f64))
+        .map_err(|e| {
+            Box::new(rhai::EvalAltResult::ErrorRuntime(
+                e.to_string().into(),
+                rhai::Position::NONE,
+            ))
+        })?;
+    let hi = args[2]
+        .as_float()
+        .or_else(|_| args[2].as_int().map(|i| i as f64))
+        .map_err(|e| {
+            Box::new(rhai::EvalAltResult::ErrorRuntime(
+                e.to_string().into(),
+                rhai::Position::NONE,
+            ))
+        })?;
     Ok(rhai::Dynamic::from(n.clamp(lo, hi)))
 }
 
-fn abs_fn(_x: rhai::Dynamic) -> rhai::Dynamic { rhai::Dynamic::UNIT }
-fn min_fn(_a: rhai::Dynamic, _b: rhai::Dynamic) -> rhai::Dynamic { rhai::Dynamic::UNIT }
-fn max_fn(_a: rhai::Dynamic, _b: rhai::Dynamic) -> rhai::Dynamic { rhai::Dynamic::UNIT }
-fn clamp_fn(_n: rhai::Dynamic, _lo: rhai::Dynamic, _hi: rhai::Dynamic) -> rhai::Dynamic { rhai::Dynamic::UNIT }
+fn abs_fn(_x: rhai::Dynamic) -> rhai::Dynamic {
+    rhai::Dynamic::UNIT
+}
+fn min_fn(_a: rhai::Dynamic, _b: rhai::Dynamic) -> rhai::Dynamic {
+    rhai::Dynamic::UNIT
+}
+fn max_fn(_a: rhai::Dynamic, _b: rhai::Dynamic) -> rhai::Dynamic {
+    rhai::Dynamic::UNIT
+}
+fn clamp_fn(_n: rhai::Dynamic, _lo: rhai::Dynamic, _hi: rhai::Dynamic) -> rhai::Dynamic {
+    rhai::Dynamic::UNIT
+}
 
 // ---------------------------------------------------------------------------
 // serde_json ↔ rhai conversion
@@ -510,14 +583,20 @@ mod tests {
 
     #[test]
     fn references_via_cells_map() {
-        let v = run("cells[\"a\"] + cells[\"b\"]", &[("a", json!(3)), ("b", json!(4))]);
+        let v = run(
+            "cells[\"a\"] + cells[\"b\"]",
+            &[("a", json!(3)), ("b", json!(4))],
+        );
         assert_eq!(v.data, json!(7));
     }
 
     #[test]
     fn helper_clamp() {
         let v = run("clamp(temp, 0, 100)", &[("temp", json!(150))]);
-        eprintln!("DEBUG: helper_clamp data={:?} status={:?} error={:?}", v.data, v.status, v.error);
+        eprintln!(
+            "DEBUG: helper_clamp data={:?} status={:?} error={:?}",
+            v.data, v.status, v.error
+        );
         assert_eq!(v.data, json!(100));
     }
 

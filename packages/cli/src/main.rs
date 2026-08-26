@@ -123,7 +123,11 @@ fn init(name: &str) -> Result<()> {
 
 async fn run_sheet(file: &PathBuf) -> Result<()> {
     let engine = load_engine(file)?;
-    println!("loaded {} ({} cells)", file.display(), engine.list_cells().len());
+    println!(
+        "loaded {} ({} cells)",
+        file.display(),
+        engine.list_cells().len()
+    );
     for cell in engine.list_cells() {
         let v = engine.get(&cell.def.id, CallerContext::default())?;
         println!("  {} ({:?}) = {}", cell.def.id, cell.def.kind, v.data);
@@ -135,7 +139,11 @@ async fn serve_mcp(file: &PathBuf) -> Result<()> {
     let sheet = parse_sheet_file(file)?;
     let engine = QuiltEngine::new("mcp").into_arc();
     engine.load_sheet(sheet)?;
-    eprintln!("quilt-mcp: serving {} ({} cells) on stdio", file.display(), engine.list_cells().len());
+    eprintln!(
+        "quilt-mcp: serving {} ({} cells) on stdio",
+        file.display(),
+        engine.list_cells().len()
+    );
 
     // Run the MCP server. This blocks.
     quilt_mcp::serve_stdio().await
@@ -150,8 +158,8 @@ async fn get_cell(id: &str, file: &PathBuf) -> Result<()> {
 
 async fn set_cell(id: &str, value: &str, file: &PathBuf) -> Result<()> {
     let engine = load_engine(file)?;
-    let v: serde_json::Value = serde_json::from_str(value)
-        .or_else(|_| serde_json::from_str(&format!("\"{}\"", value)))?;
+    let v: serde_json::Value =
+        serde_json::from_str(value).or_else(|_| serde_json::from_str(&format!("\"{}\"", value)))?;
     engine.set(id, v.clone(), CallerContext::default())?;
     println!("set {} = {}", id, v);
     Ok(())

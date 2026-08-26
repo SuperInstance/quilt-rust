@@ -67,7 +67,6 @@ pub mod types;
 pub use crate::context::{
     context_key, empty_context, eval_when, extend_context, Identity, IdentityKind,
 };
-pub use crate::types::CallerContext;
 pub use crate::engine::{EngineOptions, QuiltEngine, SubscriptionEvent, SubscriptionHandle};
 pub use crate::error::{Error, Result};
 pub use crate::ledger::{
@@ -75,8 +74,8 @@ pub use crate::ledger::{
     Posting, Provenance, Reconciliation, Replay,
 };
 pub use crate::parser::{parse_sheet, serialize_sheet, validate_sheet};
+pub use crate::types::CallerContext;
 pub use crate::types::{
-    Cell, CellDef, CellError, CellId, CellKind, CellRef, CellStatus, CellValue,
-    Direction, Effect, EvaluationTrace, RouteTarget, RouterRule, SheetDef, Subscription,
-    SubscriptionId,
+    Cell, CellDef, CellError, CellId, CellKind, CellRef, CellStatus, CellValue, Direction, Effect,
+    EvaluationTrace, RouteTarget, RouterRule, SheetDef, Subscription, SubscriptionId,
 };

@@ -27,7 +27,7 @@
 //!   version lets the field be `undefined`; we represent that with
 //!   `Value::Null` and a present-but-null `def.value`.
 
-use crate::types::{Cell, CellStatus, CellValue, CallerContext};
+use crate::types::{CallerContext, Cell, CellStatus, CellValue};
 
 /// Evaluate a value cell. Returns the static value, wrapped in a fresh
 /// `CellValue` with `status == ready` and a current timestamp.

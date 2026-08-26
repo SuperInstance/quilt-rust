@@ -68,8 +68,7 @@ fn tokenize(src: &str) -> Result<Vec<Tok>> {
             i += 1;
             continue;
         }
-        if c.is_ascii_digit()
-            || (c == '.' && i + 1 < chars.len() && chars[i + 1].is_ascii_digit())
+        if c.is_ascii_digit() || (c == '.' && i + 1 < chars.len() && chars[i + 1].is_ascii_digit())
         {
             let start = i;
             while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
@@ -236,10 +235,10 @@ impl Parser {
     fn expect(&mut self, want: &Tok, what: &str) -> Result<Tok> {
         match self.next() {
             Some(t) if &t == want => Ok(t),
-            Some(t) => Err(Error::FormulaParse(format!(
-                "expected {what}, found {t:?}"
+            Some(t) => Err(Error::FormulaParse(format!("expected {what}, found {t:?}"))),
+            None => Err(Error::FormulaParse(format!(
+                "expected {what}, found end of expression"
             ))),
-            None => Err(Error::FormulaParse(format!("expected {what}, found end of expression"))),
         }
     }
 
@@ -498,9 +497,7 @@ impl Formula {
                 match (op, v) {
                     (UnOp::Neg, Val::Num(n)) => Ok(Val::Num(-n)),
                     (UnOp::Not, Val::Bool(b)) => Ok(Val::Bool(!b)),
-                    (op, v) => Err(Error::FormulaEval(format!(
-                        "cannot apply {op:?} to {v:?}"
-                    ))),
+                    (op, v) => Err(Error::FormulaEval(format!("cannot apply {op:?} to {v:?}"))),
                 }
             }
             Expr::Binary(op, l, r) => {
@@ -583,31 +580,43 @@ mod tests {
     use serde_json::json;
 
     fn env(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect()
     }
 
     #[test]
     fn golden_formula_shapes_evaluate() {
         // pump.should_run, initial: 40 >= 80 -> false
         let f = Formula::compile("=bilge.level >= bilge.threshold").unwrap();
-        let e = env(&[("bilge.level", json!(40.0)), ("bilge.threshold", json!(80.0))]);
+        let e = env(&[
+            ("bilge.level", json!(40.0)),
+            ("bilge.threshold", json!(80.0)),
+        ]);
         assert_eq!(f.eval(&e).unwrap(), json!(false));
 
         // pump.relay_cmd, initial: clamp((40-80)*0.5, -30, 30) -> -20
-        let f = Formula::compile("=clamp((bilge.level - bilge.threshold) * 0.5, -30.0, 30.0)").unwrap();
+        let f =
+            Formula::compile("=clamp((bilge.level - bilge.threshold) * 0.5, -30.0, 30.0)").unwrap();
         assert_eq!(f.eval(&e).unwrap(), json!(-20.0));
 
         // After pushing 85: 85 >= 80 -> true, clamp((85-80)*0.5) -> 2.5
-        let e = env(&[("bilge.level", json!(85.0)), ("bilge.threshold", json!(80.0))]);
+        let e = env(&[
+            ("bilge.level", json!(85.0)),
+            ("bilge.threshold", json!(80.0)),
+        ]);
         let f = Formula::compile("bilge.level >= bilge.threshold").unwrap();
         assert_eq!(f.eval(&e).unwrap(), json!(true));
-        let f = Formula::compile("=clamp((bilge.level - bilge.threshold) * 0.5, -30.0, 30.0)").unwrap();
+        let f =
+            Formula::compile("=clamp((bilge.level - bilge.threshold) * 0.5, -30.0, 30.0)").unwrap();
         assert_eq!(f.eval(&e).unwrap(), json!(2.5));
     }
 
     #[test]
     fn dependencies_are_dotted_identifiers() {
-        let f = Formula::compile("=clamp((bilge.level - bilge.threshold) * 0.5, -30.0, 30.0)").unwrap();
+        let f =
+            Formula::compile("=clamp((bilge.level - bilge.threshold) * 0.5, -30.0, 30.0)").unwrap();
         assert_eq!(
             f.dependencies(),
             vec!["bilge.level".to_string(), "bilge.threshold".to_string()]
@@ -617,20 +626,50 @@ mod tests {
     #[test]
     fn precedence_and_operators() {
         let e = env(&[]);
-        assert_eq!(Formula::compile("1 + 2 * 3").unwrap().eval(&e).unwrap(), json!(7.0));
-        assert_eq!(Formula::compile("-(1 + 2) * 4").unwrap().eval(&e).unwrap(), json!(-12.0));
-        assert_eq!(Formula::compile("7 % 3").unwrap().eval(&e).unwrap(), json!(1.0));
         assert_eq!(
-            Formula::compile("1 < 2 && 3 >= 3 || false").unwrap().eval(&e).unwrap(),
+            Formula::compile("1 + 2 * 3").unwrap().eval(&e).unwrap(),
+            json!(7.0)
+        );
+        assert_eq!(
+            Formula::compile("-(1 + 2) * 4").unwrap().eval(&e).unwrap(),
+            json!(-12.0)
+        );
+        assert_eq!(
+            Formula::compile("7 % 3").unwrap().eval(&e).unwrap(),
+            json!(1.0)
+        );
+        assert_eq!(
+            Formula::compile("1 < 2 && 3 >= 3 || false")
+                .unwrap()
+                .eval(&e)
+                .unwrap(),
             json!(true)
         );
         assert_eq!(
-            Formula::compile("!false == true").unwrap().eval(&e).unwrap(),
+            Formula::compile("!false == true")
+                .unwrap()
+                .eval(&e)
+                .unwrap(),
             json!(true)
         );
-        assert_eq!(Formula::compile("min(3.0, 1.0, 2.0)").unwrap().eval(&e).unwrap(), json!(1.0));
-        assert_eq!(Formula::compile("max(-1.5)").unwrap().eval(&e).unwrap(), json!(-1.5));
-        assert_eq!(Formula::compile("abs(0.0 - 2.5)").unwrap().eval(&e).unwrap(), json!(2.5));
+        assert_eq!(
+            Formula::compile("min(3.0, 1.0, 2.0)")
+                .unwrap()
+                .eval(&e)
+                .unwrap(),
+            json!(1.0)
+        );
+        assert_eq!(
+            Formula::compile("max(-1.5)").unwrap().eval(&e).unwrap(),
+            json!(-1.5)
+        );
+        assert_eq!(
+            Formula::compile("abs(0.0 - 2.5)")
+                .unwrap()
+                .eval(&e)
+                .unwrap(),
+            json!(2.5)
+        );
     }
 
     #[test]

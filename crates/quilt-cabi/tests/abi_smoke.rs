@@ -18,15 +18,14 @@ use std::ptr::null_mut;
 use quilt_cabi::{
     quilt_abi_version, quilt_engine_free, quilt_engine_get, quilt_engine_load_sheet,
     quilt_engine_new, quilt_engine_set, quilt_last_error, quilt_ledger_chain_hash,
-    quilt_ledger_init, quilt_ledger_record, quilt_ledger_reconcile, quilt_ledgers_reset,
-    quilt_ledger_verify, quilt_string_free, QuiltEngine,
+    quilt_ledger_init, quilt_ledger_reconcile, quilt_ledger_record, quilt_ledger_verify,
+    quilt_ledgers_reset, quilt_string_free, QuiltEngine,
 };
 use serde_json::Value;
 
 /// The contract, straight from the source of truth.
 fn golden() -> Value {
-    serde_json::from_str(include_str!("../../../compat/golden.json"))
-        .expect("golden.json parses")
+    serde_json::from_str(include_str!("../../../compat/golden.json")).expect("golden.json parses")
 }
 
 /// The golden sheet in canonical YAML form (smoke/sheet.yaml is generated
@@ -35,14 +34,22 @@ const SHEET_YAML: &str = include_str!("../smoke/sheet.yaml");
 
 /// Take ownership of a library-allocated string, return its contents.
 fn take(ptr: *mut c_char) -> String {
-    assert!(!ptr.is_null(), "expected a string, got NULL (last_error: {})", last_error());
-    let s = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
+    assert!(
+        !ptr.is_null(),
+        "expected a string, got NULL (last_error: {})",
+        last_error()
+    );
+    let s = unsafe { CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned();
     quilt_string_free(ptr);
     s
 }
 
 fn last_error() -> String {
-    unsafe { CStr::from_ptr(quilt_last_error()) }.to_string_lossy().into_owned()
+    unsafe { CStr::from_ptr(quilt_last_error()) }
+        .to_string_lossy()
+        .into_owned()
 }
 
 fn c(s: &str) -> CString {
@@ -87,13 +94,20 @@ fn quilt_cabi_smoke_against_golden() {
         "load_sheet: {}",
         last_error()
     );
-    println!("  [.] engine loaded golden sheet ({})", g["sheet"]["id"].as_str().unwrap());
+    println!(
+        "  [.] engine loaded golden sheet ({})",
+        g["sheet"]["id"].as_str().unwrap()
+    );
 
     // -- op (a): value cell read — exact JSON equality ----------------------
 
     for v in g["op_a_value_read"].as_array().unwrap() {
         let cell = v["cell"].as_str().unwrap();
-        assert_eq!(get(engine, cell), json_text(&v["expect"]), "(a) read {cell}");
+        assert_eq!(
+            get(engine, cell),
+            json_text(&v["expect"]),
+            "(a) read {cell}"
+        );
     }
     println!("  [a] value cell read .............. PASS (3 vectors)");
 
@@ -102,13 +116,25 @@ fn quilt_cabi_smoke_against_golden() {
     let op_b = &g["op_b_formula_eval"];
     for v in op_b["initial"].as_array().unwrap() {
         let cell = v["cell"].as_str().unwrap();
-        assert_eq!(get(engine, cell), json_text(&v["expect"]), "(b) initial {cell}");
+        assert_eq!(
+            get(engine, cell),
+            json_text(&v["expect"]),
+            "(b) initial {cell}"
+        );
     }
     let push = &op_b["after_push"];
-    set(engine, push["cell"].as_str().unwrap(), &json_text(&push["value"]));
+    set(
+        engine,
+        push["cell"].as_str().unwrap(),
+        &json_text(&push["value"]),
+    );
     for v in op_b["post"].as_array().unwrap() {
         let cell = v["cell"].as_str().unwrap();
-        assert_eq!(get(engine, cell), json_text(&v["expect"]), "(b) post {cell}");
+        assert_eq!(
+            get(engine, cell),
+            json_text(&v["expect"]),
+            "(b) post {cell}"
+        );
     }
     println!("  [b] formula cell eval ........... PASS (5 vectors)");
 
@@ -152,7 +178,11 @@ fn quilt_cabi_smoke_against_golden() {
             c(&json_text(&rec["output"])).as_ptr(),
             rec["ts"].as_f64().unwrap() as u64,
         ));
-        assert_eq!(seal, want["hash"].as_str().unwrap(), "(e) seal must be bit-for-bit");
+        assert_eq!(
+            seal,
+            want["hash"].as_str().unwrap(),
+            "(e) seal must be bit-for-bit"
+        );
     }
 
     assert_eq!(quilt_ledger_verify(cell.as_ptr()), 1, "chain must verify");
@@ -163,12 +193,15 @@ fn quilt_cabi_smoke_against_golden() {
         "chain_hash must equal the golden head"
     );
 
-    let report: Value =
-        serde_json::from_str(&take(quilt_ledger_reconcile(cell.as_ptr())))
-            .expect("reconcile returns JSON");
+    let report: Value = serde_json::from_str(&take(quilt_ledger_reconcile(cell.as_ptr())))
+        .expect("reconcile returns JSON");
     let want = &op_e["reconcile"];
     for field in [
-        "entries", "open_inputs", "matched_pairs", "chain_intact", "continuity_intact",
+        "entries",
+        "open_inputs",
+        "matched_pairs",
+        "chain_intact",
+        "continuity_intact",
         "balanced",
     ] {
         assert_eq!(report[field], want[field], "(e) reconcile.{field}");
@@ -188,17 +221,24 @@ fn quilt_cabi_smoke_against_golden() {
     // -- error discipline ----------------------------------------------------
 
     let missing = quilt_engine_get(engine, c("no.such.cell").as_ptr());
-    assert!(missing.is_null(), "unknown cell must return NULL, not a string");
-    assert!(!last_error().is_empty(), "last_error must explain the failure");
+    assert!(
+        missing.is_null(),
+        "unknown cell must return NULL, not a string"
+    );
+    assert!(
+        !last_error().is_empty(),
+        "last_error must explain the failure"
+    );
     assert_eq!(quilt_ledger_verify(c("no.such.ledger").as_ptr()), -1);
-    let bad =
-        quilt_ledger_record(cell.as_ptr(), c("{not json").as_ptr(), c("1").as_ptr(), 1);
+    let bad = quilt_ledger_record(cell.as_ptr(), c("{not json").as_ptr(), c("1").as_ptr(), 1);
     assert!(bad.is_null(), "bad JSON must return NULL");
     assert!(!last_error().is_empty());
     // NULL tolerance: no crash, just an error.
     assert!(quilt_engine_get(null_mut(), c("x").as_ptr()).is_null());
     assert_eq!(quilt_engine_load_sheet(null_mut(), std::ptr::null()), -1);
-    println!("  [x] error discipline ............ PASS (NULL returns + last_error + NULL-tolerance)");
+    println!(
+        "  [x] error discipline ............ PASS (NULL returns + last_error + NULL-tolerance)"
+    );
 
     quilt_engine_free(engine);
     println!("RESULT: PASS — quilt-cabi conforms to golden.json ops (a), (b), (e)");

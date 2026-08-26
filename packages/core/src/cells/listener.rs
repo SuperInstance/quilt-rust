@@ -83,7 +83,11 @@ pub async fn fire_listener(
 
     // 3. Fire the action.
     if let Some(action_id) = &cell.def.action {
-        let _ = runtime.call(action_id, Some(new.data.clone()), &cell.last_context.clone().unwrap_or_default());
+        let _ = runtime.call(
+            action_id,
+            Some(new.data.clone()),
+            &cell.last_context.clone().unwrap_or_default(),
+        );
     }
 
     Ok(true)
@@ -125,7 +129,7 @@ fn evaluate_simple_condition(cond: &str, new: &CellValue) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{CellDef, CellKind, CallerContext};
+    use crate::types::{CallerContext, CellDef, CellKind};
     use serde_json::json;
 
     fn make_listener_cell(cond: Option<&str>, action: Option<&str>) -> Cell {
@@ -166,10 +170,17 @@ mod tests {
         fn set(&self, _id: &str, _value: serde_json::Value, _ctx: &CallerContext) -> Result<()> {
             unimplemented!()
         }
-        fn call(&self, _id: &str, _input: Option<serde_json::Value>, _ctx: &CallerContext) -> Result<CellValue> {
+        fn call(
+            &self,
+            _id: &str,
+            _input: Option<serde_json::Value>,
+            _ctx: &CallerContext,
+        ) -> Result<CellValue> {
             unimplemented!()
         }
-        fn list(&self) -> Vec<String> { vec![] }
+        fn list(&self) -> Vec<String> {
+            vec![]
+        }
     }
 
     #[tokio::test]
@@ -178,7 +189,9 @@ mod tests {
         let runtime = StubRuntime;
         let new = CellValue::ready(json!(true));
         let prev = CellValue::ready(json!(false));
-        let fired = fire_listener(&cell, &"trigger".to_string(), &new, &prev, &runtime).await.unwrap();
+        let fired = fire_listener(&cell, &"trigger".to_string(), &new, &prev, &runtime)
+            .await
+            .unwrap();
         assert!(fired);
     }
 
@@ -188,7 +201,9 @@ mod tests {
         let runtime = StubRuntime;
         let new = CellValue::ready(json!(true));
         let prev = CellValue::ready(json!(false));
-        let fired = fire_listener(&cell, &"other".to_string(), &new, &prev, &runtime).await.unwrap();
+        let fired = fire_listener(&cell, &"other".to_string(), &new, &prev, &runtime)
+            .await
+            .unwrap();
         assert!(!fired);
     }
 
@@ -198,7 +213,9 @@ mod tests {
         let runtime = StubRuntime;
         let new = CellValue::ready(json!(0));
         let prev = CellValue::ready(json!(0));
-        let fired = fire_listener(&cell, &"trigger".to_string(), &new, &prev, &runtime).await.unwrap();
+        let fired = fire_listener(&cell, &"trigger".to_string(), &new, &prev, &runtime)
+            .await
+            .unwrap();
         assert!(fired);
     }
 
@@ -208,7 +225,9 @@ mod tests {
         let runtime = StubRuntime;
         let new = CellValue::ready(json!(1));
         let prev = CellValue::ready(json!(0));
-        let fired = fire_listener(&cell, &"trigger".to_string(), &new, &prev, &runtime).await.unwrap();
+        let fired = fire_listener(&cell, &"trigger".to_string(), &new, &prev, &runtime)
+            .await
+            .unwrap();
         assert!(!fired);
     }
 
@@ -218,11 +237,21 @@ mod tests {
         let runtime = StubRuntime;
         let new_match = CellValue::ready(json!(42));
         let prev = CellValue::ready(json!(0));
-        let fired = fire_listener(&cell, &"trigger".to_string(), &new_match, &prev, &runtime).await.unwrap();
+        let fired = fire_listener(&cell, &"trigger".to_string(), &new_match, &prev, &runtime)
+            .await
+            .unwrap();
         assert!(fired);
 
         let new_no_match = CellValue::ready(json!(43));
-        let fired = fire_listener(&cell, &"trigger".to_string(), &new_no_match, &prev, &runtime).await.unwrap();
+        let fired = fire_listener(
+            &cell,
+            &"trigger".to_string(),
+            &new_no_match,
+            &prev,
+            &runtime,
+        )
+        .await
+        .unwrap();
         assert!(!fired);
     }
 }

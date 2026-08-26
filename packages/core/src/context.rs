@@ -375,9 +375,18 @@ pub fn eval_when(expr: &str, ctx: &CallerContext) -> Result<bool> {
     // expressions; they only operate on `caller`.
 
     let mut caller = Map::new();
-    caller.insert("row".into(), json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)));
-    caller.insert("column".into(), json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)));
-    caller.insert("sheet".into(), json_to_dynamic(ctx.sheet.clone().map(Value::String).unwrap_or(Value::Null)));
+    caller.insert(
+        "row".into(),
+        json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)),
+    );
+    caller.insert(
+        "column".into(),
+        json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)),
+    );
+    caller.insert(
+        "sheet".into(),
+        json_to_dynamic(ctx.sheet.clone().map(Value::String).unwrap_or(Value::Null)),
+    );
     if let Some(identity) = &ctx.identity {
         let mut id_map = Map::new();
         id_map.insert("id".into(), identity.id.clone().into());

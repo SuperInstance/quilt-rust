@@ -53,7 +53,11 @@ fn assert_close(what: &str, got: &Value, want: &Value, tol: f64) {
             );
         }
         (Value::Array(gs), Value::Array(ws)) => {
-            assert_eq!(gs.len(), ws.len(), "{what}: length mismatch {gs:?} vs {ws:?}");
+            assert_eq!(
+                gs.len(),
+                ws.len(),
+                "{what}: length mismatch {gs:?} vs {ws:?}"
+            );
             for (i, (gv, wv)) in gs.iter().zip(ws.iter()).enumerate() {
                 assert_close(&format!("{what}[{i}]"), gv, wv, tol);
             }
@@ -65,7 +69,8 @@ fn assert_close(what: &str, got: &Value, want: &Value, tol: f64) {
 fn assert_sha256_hex(what: &str, got: &str, want: &str) {
     assert_eq!(got.len(), 64, "{what}: not a sha256 hex string: {got}");
     assert!(
-        got.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        got.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
         "{what}: must be lowercase hex: {got}"
     );
     assert_eq!(got, want, "{what}: must be bit-for-bit");
@@ -129,7 +134,10 @@ fn topo_order(graph: &BTreeMap<String, Vec<String>>, nodes: &BTreeSet<String>) -
         for dep in &graph[id.as_str()] {
             if nodes.contains(dep) {
                 *indegree.get_mut(id.as_str()).unwrap() += 1;
-                dependents.entry(dep.as_str()).or_default().push(id.as_str());
+                dependents
+                    .entry(dep.as_str())
+                    .or_default()
+                    .push(id.as_str());
             }
         }
     }
@@ -200,7 +208,10 @@ fn quilt_compat_conformance() {
     assert_eq!(g["contract"].as_str(), Some("quilt-compat/1"));
     assert_eq!(g["spec"]["edge_schema_v"].as_u64(), Some(1));
     println!("=== quilt-compat conformance (reference tier: rust) ===");
-    println!("contract: {}  golden: compat/golden.json", g["contract"].as_str().unwrap());
+    println!(
+        "contract: {}  golden: compat/golden.json",
+        g["contract"].as_str().unwrap()
+    );
 
     // (a) value cell read ---------------------------------------------------
 
@@ -217,7 +228,10 @@ fn quilt_compat_conformance() {
                 0.0,
             );
         }
-        println!("  [a] value cell read .............. PASS ({} vectors)", vectors.len());
+        println!(
+            "  [a] value cell read .............. PASS ({} vectors)",
+            vectors.len()
+        );
     }
 
     // (b) formula cell eval ---------------------------------------------------
@@ -277,11 +291,16 @@ fn quilt_compat_conformance() {
         );
 
         let engine = fresh_engine(&g);
-        let declared = section["engine_dependency_graph_must_match"].as_object().unwrap();
+        let declared = section["engine_dependency_graph_must_match"]
+            .as_object()
+            .unwrap();
         for (cell, deps) in declared {
             let cell_obj = engine.get_cell(cell).expect("cell exists");
-            let mut got: Vec<String> =
-                cell_obj.dependencies.iter().map(|d| d.to_string()).collect();
+            let mut got: Vec<String> = cell_obj
+                .dependencies
+                .iter()
+                .map(|d| d.to_string())
+                .collect();
             got.sort();
             let mut expected: Vec<String> = deps
                 .as_array()
@@ -299,7 +318,12 @@ fn quilt_compat_conformance() {
             .push(mutate["cell"].as_str().unwrap(), mutate["value"].clone())
             .expect("push");
         let final_level = engine.get("bilge.level", CallerContext::default()).unwrap();
-        assert_close("(c) post-mutation read", &final_level.data, &json!(85.0), 0.0);
+        assert_close(
+            "(c) post-mutation read",
+            &final_level.data,
+            &json!(85.0),
+            0.0,
+        );
         println!("  [c] propagation order ........... PASS (topo order + engine graph agrees)");
     }
 
@@ -331,7 +355,10 @@ fn quilt_compat_conformance() {
                 v["expect"]["provenance"].as_str().unwrap(),
             );
         }
-        println!("  [d] edge record ................. PASS ({} vectors)", vectors.len());
+        println!(
+            "  [d] edge record ................. PASS ({} vectors)",
+            vectors.len()
+        );
     }
 
     // (e) ledger chain-hash + reconcile ---------------------------------------
@@ -353,9 +380,14 @@ fn quilt_compat_conformance() {
             );
         }
 
-        for (entry, want) in ledger.entries().iter().zip(section["entries"].as_array().unwrap()) {
+        for (entry, want) in ledger
+            .entries()
+            .iter()
+            .zip(section["entries"].as_array().unwrap())
+        {
             assert_eq!(
-                entry.seq, want["seq"].as_u64().unwrap(),
+                entry.seq,
+                want["seq"].as_u64().unwrap(),
                 "(e) seq must be contiguous from 1"
             );
             assert_sha256_hex(
@@ -379,7 +411,10 @@ fn quilt_compat_conformance() {
         let want = &section["reconcile"];
         assert_eq!(report.cell_id, cell, "(e) reconcile cell_id");
         assert_eq!(report.entries, want["entries"].as_u64().unwrap() as usize);
-        assert_eq!(report.open_inputs, want["open_inputs"].as_u64().unwrap() as usize);
+        assert_eq!(
+            report.open_inputs,
+            want["open_inputs"].as_u64().unwrap() as usize
+        );
         assert_eq!(
             report.matched_pairs,
             want["matched_pairs"].as_u64().unwrap() as usize

@@ -45,7 +45,7 @@
 
 use crate::cells::ProgramRuntime;
 use crate::error::Result;
-use crate::types::{now_millis, Cell, CallerContext, CellStatus, CellValue, RouteTarget};
+use crate::types::{now_millis, CallerContext, Cell, CellStatus, CellValue, RouteTarget};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -89,15 +89,13 @@ pub async fn evaluate_router(
                         effects: Vec::new(),
                     })
                 }
-                RouteTarget::Value { value } => {
-                    Ok(CellValue {
-                        data: value.clone(),
-                        status: CellStatus::Ready,
-                        computed_at: Some(started_at),
-                        error: None,
-                        effects: Vec::new(),
-                    })
-                }
+                RouteTarget::Value { value } => Ok(CellValue {
+                    data: value.clone(),
+                    status: CellStatus::Ready,
+                    computed_at: Some(started_at),
+                    error: None,
+                    effects: Vec::new(),
+                }),
             };
         }
     }
@@ -153,10 +151,7 @@ fn rule_matches(when: &str, ctx: &CallerContext, input: Option<&Value>) -> bool 
             .unwrap_or(false);
     }
     if let Some(rest) = when.strip_prefix("input == ") {
-        if let (Some(target), Some(input)) = (
-            serde_json::from_str::<Value>(rest).ok(),
-            input,
-        ) {
+        if let (Some(target), Some(input)) = (serde_json::from_str::<Value>(rest).ok(), input) {
             return *input == target;
         }
         return false;
@@ -168,9 +163,7 @@ fn rule_matches(when: &str, ctx: &CallerContext, input: Option<&Value>) -> bool 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{
-        CellDef, CellKind, CellStatus, RouteTarget, RouterRule,
-    };
+    use crate::types::{CellDef, CellKind, CellStatus, RouteTarget, RouterRule};
     use serde_json::json;
     use std::collections::BTreeMap;
 
@@ -216,7 +209,9 @@ mod tests {
             // Always return a marker so we can see what was called.
             Ok(CellValue::ready(json!({"called": id})))
         }
-        fn list(&self) -> Vec<String> { vec![] }
+        fn list(&self) -> Vec<String> {
+            vec![]
+        }
     }
 
     #[tokio::test]
@@ -232,9 +227,14 @@ mod tests {
             },
         ];
         let cell = make_router_cell(rules);
-        let result = evaluate_router(cell, CallerContext::default(), None, Arc::new(StaticRuntime))
-            .await
-            .unwrap();
+        let result = evaluate_router(
+            cell,
+            CallerContext::default(),
+            None,
+            Arc::new(StaticRuntime),
+        )
+        .await
+        .unwrap();
         assert_eq!(result.data["called"], "a");
     }
 
@@ -247,7 +247,9 @@ mod tests {
         let cell = make_router_cell(rules);
         let mut ctx = CallerContext::default();
         ctx.row = Some(json!("premium"));
-        let result = evaluate_router(cell, ctx, None, Arc::new(StaticRuntime)).await.unwrap();
+        let result = evaluate_router(cell, ctx, None, Arc::new(StaticRuntime))
+            .await
+            .unwrap();
         assert_eq!(result.data["called"], "expensive");
     }
 
@@ -275,12 +277,19 @@ mod tests {
     async fn literal_value_route() {
         let rules = vec![RouterRule {
             when: "true".to_string(),
-            route: RouteTarget::Value { value: json!("fallback") },
+            route: RouteTarget::Value {
+                value: json!("fallback"),
+            },
         }];
         let cell = make_router_cell(rules);
-        let result = evaluate_router(cell, CallerContext::default(), None, Arc::new(StaticRuntime))
-            .await
-            .unwrap();
+        let result = evaluate_router(
+            cell,
+            CallerContext::default(),
+            None,
+            Arc::new(StaticRuntime),
+        )
+        .await
+        .unwrap();
         assert_eq!(result.data, json!("fallback"));
     }
 }

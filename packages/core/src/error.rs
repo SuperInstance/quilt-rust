@@ -182,4 +182,3 @@ impl From<serde_yml::Error> for Error {
         Self::Yaml(err.to_string())
     }
 }
-

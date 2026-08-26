@@ -103,9 +103,7 @@ pub extern "C" fn quilt_core_wasm_golden_check() -> u32 {
 }
 
 fn run_golden_checks() -> bool {
-    let golden: Value = match serde_json::from_str(include_str!(
-        "../../../compat/golden.json"
-    )) {
+    let golden: Value = match serde_json::from_str(include_str!("../../../compat/golden.json")) {
         Ok(v) => v,
         Err(_) => return false,
     };
@@ -140,7 +138,10 @@ fn run_golden_checks() -> bool {
     }
     let push = &golden["op_b_formula_eval"]["after_push"];
     if engine
-        .push(push["cell"].as_str().unwrap_or_default(), push["value"].clone())
+        .push(
+            push["cell"].as_str().unwrap_or_default(),
+            push["value"].clone(),
+        )
         .is_err()
     {
         return false;
@@ -177,7 +178,10 @@ fn run_golden_checks() -> bool {
             rec["ts"].as_f64().unwrap_or_default() as u64,
         );
     }
-    let entries: &[Value] = section["entries"].as_array().map(|a| a.as_slice()).unwrap_or(&[]);
+    let entries: &[Value] = section["entries"]
+        .as_array()
+        .map(|a| a.as_slice())
+        .unwrap_or(&[]);
     if ledger.entries().len() != entries.len() {
         return false;
     }
@@ -198,5 +202,9 @@ fn run_golden_checks() -> bool {
         && Some(report.entries as u64) == want["entries"].as_u64()
         && Some(report.open_inputs as u64) == want["open_inputs"].as_u64()
         && Some(report.matched_pairs as u64) == want["matched_pairs"].as_u64()
-        && close(&serde_json::json!(report.total_surprise), &want["total_surprise"], 1e-12)
+        && close(
+            &serde_json::json!(report.total_surprise),
+            &want["total_surprise"],
+            1e-12,
+        )
 }

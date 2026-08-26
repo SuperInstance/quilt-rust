@@ -15,13 +15,11 @@ fn main() -> Result<()> {
         .get(1)
         .map(PathBuf::from)
         .context("usage: quilt-tui <sheet.yaml>")?;
-    let source = std::fs::read_to_string(&file)
-        .with_context(|| format!("read {}", file.display()))?;
+    let source =
+        std::fs::read_to_string(&file).with_context(|| format!("read {}", file.display()))?;
     let sheet = parse_sheet(&source).context("parse sheet")?;
     let engine = QuiltEngine::new(file.display().to_string()).into_arc();
-    engine
-        .load_sheet(sheet)
-        .context("load sheet")?;
+    engine.load_sheet(sheet).context("load sheet")?;
     let mut tui = Tui::new(engine);
     tui.run()
 }

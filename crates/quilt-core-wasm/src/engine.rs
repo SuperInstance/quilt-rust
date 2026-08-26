@@ -76,9 +76,8 @@ impl WasmEngine {
             let expr = def.expr.as_deref().ok_or_else(|| {
                 Error::InvalidSheet(format!("formula cell '{}' has no expr", def.id))
             })?;
-            let formula = Formula::compile(expr).map_err(|e| {
-                Error::InvalidSheet(format!("formula cell '{}': {e}", def.id))
-            })?;
+            let formula = Formula::compile(expr)
+                .map_err(|e| Error::InvalidSheet(format!("formula cell '{}': {e}", def.id)))?;
             self.formulas.insert(def.id.clone(), formula);
         }
         self.cells.insert(def.id.clone(), def);
@@ -98,7 +97,10 @@ impl WasmEngine {
     }
 
     fn get_inner(&self, id: &str, visited: &mut HashSet<String>) -> Result<Value> {
-        let def = self.cells.get(id).ok_or_else(|| Error::CellNotFound(id.into()))?;
+        let def = self
+            .cells
+            .get(id)
+            .ok_or_else(|| Error::CellNotFound(id.into()))?;
         if !visited.insert(id.to_string()) {
             return Err(Error::FormulaEval(format!(
                 "dependency cycle detected at '{id}'"
@@ -118,10 +120,9 @@ impl WasmEngine {
                 for dep in deps {
                     env.insert(dep.clone(), self.get_inner(&dep, visited)?);
                 }
-                let formula = self
-                    .formulas
-                    .get(id)
-                    .ok_or_else(|| Error::FormulaEval(format!("cell '{id}': formula not compiled")))?;
+                let formula = self.formulas.get(id).ok_or_else(|| {
+                    Error::FormulaEval(format!("cell '{id}': formula not compiled"))
+                })?;
                 formula.eval(&env)?
             }
         };
@@ -133,7 +134,10 @@ impl WasmEngine {
     /// mirroring the native engine's set-paths). Formulas cannot be
     /// pushed; they derive.
     pub fn push(&mut self, id: &str, value: Value) -> Result<()> {
-        let def = self.cells.get(id).ok_or_else(|| Error::CellNotFound(id.into()))?;
+        let def = self
+            .cells
+            .get(id)
+            .ok_or_else(|| Error::CellNotFound(id.into()))?;
         match def.kind {
             CellKind::Sensor | CellKind::Value => {
                 self.pushed.insert(id.to_string(), value);
@@ -151,7 +155,10 @@ impl WasmEngine {
     /// unioned with declared `deps` — the same edge set the native
     /// engine must produce (golden op c).
     pub fn dependencies(&self, id: &str) -> Result<Vec<String>> {
-        let def = self.cells.get(id).ok_or_else(|| Error::CellNotFound(id.into()))?;
+        let def = self
+            .cells
+            .get(id)
+            .ok_or_else(|| Error::CellNotFound(id.into()))?;
         let mut deps = self.dependencies_inner(def)?;
         deps.sort();
         Ok(deps)

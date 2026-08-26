@@ -21,9 +21,7 @@
 
 use std::sync::Arc;
 
-use quilt_core::{
-    parse_sheet, CellDef, CellKind, CellStatus, QuiltEngine, SheetDef,
-};
+use quilt_core::{parse_sheet, CellDef, CellKind, CellStatus, QuiltEngine, SheetDef};
 
 // =============================================================================
 // Helpers
@@ -133,7 +131,11 @@ fn set_value_cell_updates() {
     engine.load_sheet(sheet).unwrap();
 
     engine
-        .set("counter", serde_json::json!(1), quilt_core::CallerContext::default())
+        .set(
+            "counter",
+            serde_json::json!(1),
+            quilt_core::CallerContext::default(),
+        )
         .unwrap();
     let v = engine
         .get("counter", quilt_core::CallerContext::default())
@@ -141,7 +143,11 @@ fn set_value_cell_updates() {
     assert_eq!(v.data, serde_json::json!(1));
 
     engine
-        .set("counter", serde_json::json!(2), quilt_core::CallerContext::default())
+        .set(
+            "counter",
+            serde_json::json!(2),
+            quilt_core::CallerContext::default(),
+        )
         .unwrap();
     let v = engine
         .get("counter", quilt_core::CallerContext::default())
@@ -209,7 +215,11 @@ fn setting_value_marks_formula_stale() {
 
     // Set the input.
     engine
-        .set("input", serde_json::json!(20), quilt_core::CallerContext::default())
+        .set(
+            "input",
+            serde_json::json!(20),
+            quilt_core::CallerContext::default(),
+        )
         .unwrap();
 
     // The formula's value should be marked stale (status = Stale)
@@ -290,7 +300,11 @@ fn get_nonexistent_cell_errors() {
 #[test]
 fn set_nonexistent_cell_errors() {
     let engine = engine();
-    let result = engine.set("missing", serde_json::json!(1), quilt_core::CallerContext::default());
+    let result = engine.set(
+        "missing",
+        serde_json::json!(1),
+        quilt_core::CallerContext::default(),
+    );
     assert!(result.is_err());
 }
 
@@ -367,7 +381,11 @@ fn subscribe_to_a_cell() {
     let handle = engine.subscribe("watched").unwrap();
     // Make a change.
     engine
-        .set("watched", serde_json::json!(42), quilt_core::CallerContext::default())
+        .set(
+            "watched",
+            serde_json::json!(42),
+            quilt_core::CallerContext::default(),
+        )
         .unwrap();
 
     // Try to receive (non-blocking). The MVP subscription model

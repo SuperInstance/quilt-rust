@@ -38,7 +38,7 @@ use rhai::{Array, Dynamic, Engine, Map, Scope};
 use serde_json::Value;
 
 use crate::error::Result;
-use crate::types::{now_millis, Cell, CellStatus, CellValue, CallerContext};
+use crate::types::{now_millis, CallerContext, Cell, CellStatus, CellValue};
 
 /// What a program cell sees as `runtime`. A small subset of the engine's
 /// public surface — get, set, call, list — enough to build interesting
@@ -133,10 +133,7 @@ pub async fn evaluate_program(
             Err(e) => {
                 let mut m = rhai::Map::new();
                 m.insert("__quilt_error".into(), true.into());
-                m.insert(
-                    "message".into(),
-                    format!("runtime.get failed: {e}").into(),
-                );
+                m.insert("message".into(), format!("runtime.get failed: {e}").into());
                 m.into()
             }
         }
@@ -145,30 +142,32 @@ pub async fn evaluate_program(
     let rt2_ctx = ctx.clone();
     engine.register_fn("qset", move |id: &str, value: rhai::Dynamic| -> () {
         let v = dynamic_to_json(value);
-        rt2.set(id, v, &rt2_ctx).map_err(|e| format!("{e}")).unwrap_or(());
+        rt2.set(id, v, &rt2_ctx)
+            .map_err(|e| format!("{e}"))
+            .unwrap_or(());
     });
     let rt3 = Arc::clone(&runtime);
     let rt3_ctx = ctx.clone();
-    engine.register_fn("qcall", move |id: &str, input: rhai::Dynamic| -> rhai::Dynamic {
-        let input_value = dynamic_to_json(input);
-        let input_opt = if input_value.is_null() {
-            None
-        } else {
-            Some(input_value)
-        };
-        match rt3.call(id, input_opt, &rt3_ctx) {
-            Ok(v) => cell_value_to_dynamic(v),
-            Err(e) => {
-                let mut m = rhai::Map::new();
-                m.insert("__quilt_error".into(), true.into());
-                m.insert(
-                    "message".into(),
-                    format!("runtime.call failed: {e}").into(),
-                );
-                m.into()
+    engine.register_fn(
+        "qcall",
+        move |id: &str, input: rhai::Dynamic| -> rhai::Dynamic {
+            let input_value = dynamic_to_json(input);
+            let input_opt = if input_value.is_null() {
+                None
+            } else {
+                Some(input_value)
+            };
+            match rt3.call(id, input_opt, &rt3_ctx) {
+                Ok(v) => cell_value_to_dynamic(v),
+                Err(e) => {
+                    let mut m = rhai::Map::new();
+                    m.insert("__quilt_error".into(), true.into());
+                    m.insert("message".into(), format!("runtime.call failed: {e}").into());
+                    m.into()
+                }
             }
-        }
-    });
+        },
+    );
     let rt4 = Arc::clone(&runtime);
     engine.register_fn("qlist", move || -> rhai::Array {
         rt4.list().into_iter().map(|s| s.into()).collect()
@@ -179,7 +178,12 @@ pub async fn evaluate_program(
     // them so the user can write `tags.includes("premium")` in
     // their scripts.
     engine.register_fn("includes", |arr: rhai::Array, needle: &str| -> bool {
-        arr.iter().any(|v| v.clone().into_string().map(|s| s == needle).unwrap_or(false))
+        arr.iter().any(|v| {
+            v.clone()
+                .into_string()
+                .map(|s| s == needle)
+                .unwrap_or(false)
+        })
     });
 
     // Bind input.
@@ -187,8 +191,14 @@ pub async fn evaluate_program(
 
     // Bind caller.
     let mut caller = Map::new();
-    caller.insert("row".into(), json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)));
-    caller.insert("column".into(), json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)));
+    caller.insert(
+        "row".into(),
+        json_to_dynamic(ctx.row.clone().unwrap_or(Value::Null)),
+    );
+    caller.insert(
+        "column".into(),
+        json_to_dynamic(ctx.column.clone().unwrap_or(Value::Null)),
+    );
     caller.insert(
         "sheet".into(),
         json_to_dynamic(ctx.sheet.clone().map(Value::String).unwrap_or(Value::Null)),
@@ -211,10 +221,22 @@ pub async fn evaluate_program(
     scope.push_dynamic("caller", caller.into());
 
     // Bind helpers.
-    scope.push("clamp", clamp_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
-    scope.push("abs", abs_fn as fn(Dynamic) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
-    scope.push("min", min_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
-    scope.push("max", max_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>);
+    scope.push(
+        "clamp",
+        clamp_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>,
+    );
+    scope.push(
+        "abs",
+        abs_fn as fn(Dynamic) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>,
+    );
+    scope.push(
+        "min",
+        min_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>,
+    );
+    scope.push(
+        "max",
+        max_fn as fn(rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>>,
+    );
 
     // Run.
     let result = match engine.eval_with_scope::<Dynamic>(&mut scope, &code) {
@@ -245,10 +267,7 @@ pub async fn evaluate_program(
 fn cell_value_to_dynamic(v: CellValue) -> Dynamic {
     let mut map = Map::new();
     map.insert("data".into(), json_to_dynamic(v.data));
-    map.insert(
-        "status".into(),
-        v.status.as_str().to_string().into(),
-    );
+    map.insert("status".into(), v.status.as_str().to_string().into());
     if let Some(ts) = v.computed_at {
         map.insert("computedAt".into(), (ts as i64).into());
     }
@@ -276,15 +295,30 @@ fn clamp_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::E
     }
     let n = match args[0].as_float() {
         Ok(n) => n,
-        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        Err(e) => {
+            return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
+                e.to_string().into(),
+                rhai::Position::NONE,
+            )))
+        }
     };
     let lo = match args[1].as_float() {
         Ok(n) => n,
-        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        Err(e) => {
+            return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
+                e.to_string().into(),
+                rhai::Position::NONE,
+            )))
+        }
     };
     let hi = match args[2].as_float() {
         Ok(n) => n,
-        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        Err(e) => {
+            return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
+                e.to_string().into(),
+                rhai::Position::NONE,
+            )))
+        }
     };
     Ok(n.clamp(lo, hi).into())
 }
@@ -292,7 +326,12 @@ fn clamp_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::E
 fn abs_fn(x: Dynamic) -> std::result::Result<rhai::Dynamic, Box<rhai::EvalAltResult>> {
     let n = match x.as_float() {
         Ok(n) => n,
-        Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+        Err(e) => {
+            return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
+                e.to_string().into(),
+                rhai::Position::NONE,
+            )))
+        }
     };
     Ok(n.abs().into())
 }
@@ -302,7 +341,12 @@ fn min_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::Eva
     for a in args {
         let n = match a.as_float() {
             Ok(n) => n,
-            Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+            Err(e) => {
+                return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
+                    e.to_string().into(),
+                    rhai::Position::NONE,
+                )))
+            }
         };
         if n < best {
             best = n;
@@ -316,7 +360,12 @@ fn max_fn(args: rhai::Array) -> std::result::Result<rhai::Dynamic, Box<rhai::Eva
     for a in args {
         let n = match a.as_float() {
             Ok(n) => n,
-            Err(e) => return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(e.to_string().into(), rhai::Position::NONE))),
+            Err(e) => {
+                return Err(Box::new(rhai::EvalAltResult::ErrorRuntime(
+                    e.to_string().into(),
+                    rhai::Position::NONE,
+                )))
+            }
         };
         if n > best {
             best = n;
@@ -411,13 +460,7 @@ mod tests {
     #[tokio::test]
     async fn simple_return() {
         let cell = program_cell("1 + 2");
-        let v = evaluate_program(
-            cell,
-            CallerContext::default(),
-            None,
-            Arc::new(NullRuntime),
-        )
-        .await;
+        let v = evaluate_program(cell, CallerContext::default(), None, Arc::new(NullRuntime)).await;
         assert_eq!(v.status, CellStatus::Ready);
         assert_eq!(v.data, serde_json::json!(3));
     }
@@ -425,13 +468,7 @@ mod tests {
     #[tokio::test]
     async fn returns_object() {
         let cell = program_cell("#{ action: \"turn_left\", degrees: 10 }");
-        let v = evaluate_program(
-            cell,
-            CallerContext::default(),
-            None,
-            Arc::new(NullRuntime),
-        )
-        .await;
+        let v = evaluate_program(cell, CallerContext::default(), None, Arc::new(NullRuntime)).await;
         assert_eq!(v.status, CellStatus::Ready);
         assert_eq!(v.data["action"], "turn_left");
         assert_eq!(v.data["degrees"], 10);

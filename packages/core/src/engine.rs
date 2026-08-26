@@ -54,9 +54,9 @@
 //!   blocks briefly on `send`. This is intentional — the engine
 //!   never drops events.
 
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
-use once_cell::sync::OnceCell;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use indexmap::IndexMap;
@@ -81,12 +81,7 @@ use crate::types::{
 /// A callback invoked when a subscribed cell changes.
 pub trait SubscriptionCallback: Send + Sync {
     /// Called with `(cell_id, new_value, prev_value)`.
-    fn on_change(
-        &self,
-        cell_id: &str,
-        new_value: &CellValue,
-        prev_value: &CellValue,
-    );
+    fn on_change(&self, cell_id: &str, new_value: &CellValue, prev_value: &CellValue);
 }
 
 /// A filter applied to subscription events. If the filter returns
@@ -179,7 +174,10 @@ impl QuiltEngine {
         let weak = Arc::downgrade(&arc);
         // `set` is infallible because the cell is freshly created.
         let engine_ref: &QuiltEngine = &arc;
-        engine_ref.self_ref.set(weak).expect("self_ref just created");
+        engine_ref
+            .self_ref
+            .set(weak)
+            .expect("self_ref just created");
         arc
     }
 
@@ -271,12 +269,7 @@ impl QuiltEngine {
         Ok(Arc::new(cells[&id].clone()))
     }
 
-    fn add_dep_locked(
-        &self,
-        cells: &mut IndexMap<CellId, Cell>,
-        from: &str,
-        to: &str,
-    ) {
+    fn add_dep_locked(&self, cells: &mut IndexMap<CellId, Cell>, from: &str, to: &str) {
         if !cells.contains_key(from) || !cells.contains_key(to) {
             return;
         }
@@ -365,12 +358,7 @@ impl QuiltEngine {
 
     /// Call a cell as a capability. For pure cells, same as `get`
     /// (input is ignored). For effectful cells, input is passed.
-    pub fn call(
-        &self,
-        id: &str,
-        input: Option<Value>,
-        ctx: CallerContext,
-    ) -> Result<CellValue> {
+    pub fn call(&self, id: &str, input: Option<Value>, ctx: CallerContext) -> Result<CellValue> {
         let id_norm = self.normalize_id(id)?;
         let kind = {
             let cells = self.cells.read();
@@ -401,19 +389,33 @@ impl QuiltEngine {
                     let cells = self.cells.read();
                     cells.get(&id_norm).cloned().expect("checked above")
                 };
-                Ok(drive_async(evaluate_api(cell, full_ctx.clone(), input, None)))
+                Ok(drive_async(evaluate_api(
+                    cell,
+                    full_ctx.clone(),
+                    input,
+                    None,
+                )))
             }
             CellKind::Program => {
-                let arc_engine = self.arc_self().expect("engine must be created via into_arc");
+                let arc_engine = self
+                    .arc_self()
+                    .expect("engine must be created via into_arc");
                 let runtime = Arc::new(EngineRuntime { engine: arc_engine });
                 let cell = {
                     let cells = self.cells.read();
                     cells.get(&id_norm).cloned().expect("checked above")
                 };
-                Ok(drive_async(evaluate_program(cell, full_ctx.clone(), input, runtime)))
+                Ok(drive_async(evaluate_program(
+                    cell,
+                    full_ctx.clone(),
+                    input,
+                    runtime,
+                )))
             }
             CellKind::Router => {
-                let arc_engine = self.arc_self().expect("engine must be created via into_arc");
+                let arc_engine = self
+                    .arc_self()
+                    .expect("engine must be created via into_arc");
                 let runtime = Arc::new(EngineRuntime { engine: arc_engine });
                 let cell = {
                     let cells = self.cells.read();
@@ -846,7 +848,11 @@ impl ProgramRuntime for EngineRuntime {
     }
 
     fn list(&self) -> Vec<String> {
-        self.engine.list_cells().into_iter().map(|c| c.def.id.clone()).collect()
+        self.engine
+            .list_cells()
+            .into_iter()
+            .map(|c| c.def.id.clone())
+            .collect()
     }
 }
 
@@ -927,9 +933,7 @@ fn drive_async_boxed<T: Send + 'static>(
                 .build()
                 .expect("failed to build tokio runtime");
             let result = rt.block_on(future);
-            *slot_for_thread
-                .lock()
-                .expect("drive_async mutex poisoned") = Some(result);
+            *slot_for_thread.lock().expect("drive_async mutex poisoned") = Some(result);
         })
         .expect("failed to spawn thread");
     let _ = join.join().expect("drive_async thread panicked");

@@ -118,18 +118,15 @@ impl ApiExecutor for ReqwestExecutor {
 async fn response_to_apiresponse(resp: Response) -> Result<ApiResponse> {
     let status = resp.status();
     let status_code = status.as_u16();
-    let status_text = status
-        .canonical_reason()
-        .unwrap_or("")
-        .to_string();
+    let status_text = status.canonical_reason().unwrap_or("").to_string();
     let mut headers = std::collections::BTreeMap::new();
     for (k, v) in resp.headers().iter() {
-        headers.insert(k.as_str().to_lowercase(), v.to_str().unwrap_or("").to_string());
+        headers.insert(
+            k.as_str().to_lowercase(),
+            v.to_str().unwrap_or("").to_string(),
+        );
     }
-    let content_type = headers
-        .get("content-type")
-        .cloned()
-        .unwrap_or_default();
+    let content_type = headers.get("content-type").cloned().unwrap_or_default();
     let body_text = resp.text().await?;
     let body = if content_type.contains("application/json") {
         serde_json::from_str(&body_text).unwrap_or(Value::String(body_text))
@@ -244,9 +241,12 @@ pub async fn evaluate_api(
         None => None,
     };
 
-    let executor: ApiExecutorRef = executor.unwrap_or_else(|| std::sync::Arc::new(ReqwestExecutor::new()));
+    let executor: ApiExecutorRef =
+        executor.unwrap_or_else(|| std::sync::Arc::new(ReqwestExecutor::new()));
 
-    let result = executor.execute(&method, &url, &headers, body_str.as_deref()).await;
+    let result = executor
+        .execute(&method, &url, &headers, body_str.as_deref())
+        .await;
     let duration = now_millis().saturating_sub(started_at);
 
     match result {
@@ -256,10 +256,7 @@ pub async fn evaluate_api(
             computed_at: Some(now_millis()),
             error: None,
             effects: vec![
-                Effect::Network {
-                    url,
-                    method,
-                },
+                Effect::Network { url, method },
                 Effect::Compute { ms: duration },
             ],
         },
@@ -385,13 +382,7 @@ mod tests {
     #[tokio::test]
     async fn model_pseudo_endpoint_returns_synthetic() {
         let cell = api_cell("model:gpt-4o");
-        let v = evaluate_api(
-            cell,
-            crate::types::CallerContext::default(),
-            None,
-            None,
-        )
-        .await;
+        let v = evaluate_api(cell, crate::types::CallerContext::default(), None, None).await;
         assert_eq!(v.status, CellStatus::Ready);
         assert_eq!(v.data["model"], "gpt-4o");
     }
@@ -404,13 +395,7 @@ mod tests {
             endpoint: None,
             ..Default::default()
         });
-        let v = evaluate_api(
-            cell,
-            crate::types::CallerContext::default(),
-            None,
-            None,
-        )
-        .await;
+        let v = evaluate_api(cell, crate::types::CallerContext::default(), None, None).await;
         assert_eq!(v.status, CellStatus::Error);
     }
 

@@ -28,8 +28,7 @@ const TOL_EDGE: f64 = 1e-12;
 const TOL_RECONCILE: f64 = 1e-12;
 
 fn golden() -> Value {
-    serde_json::from_str(include_str!("../../../compat/golden.json"))
-        .expect("golden.json parses")
+    serde_json::from_str(include_str!("../../../compat/golden.json")).expect("golden.json parses")
 }
 
 fn fresh_engine(g: &Value) -> WasmEngine {
@@ -48,7 +47,11 @@ fn assert_close(what: &str, got: &Value, want: &Value, tol: f64) {
             );
         }
         (Value::Array(gs), Value::Array(ws)) => {
-            assert_eq!(gs.len(), ws.len(), "{what}: length mismatch {gs:?} vs {ws:?}");
+            assert_eq!(
+                gs.len(),
+                ws.len(),
+                "{what}: length mismatch {gs:?} vs {ws:?}"
+            );
             for (i, (gv, wv)) in gs.iter().zip(ws.iter()).enumerate() {
                 assert_close(&format!("{what}[{i}]"), gv, wv, tol);
             }
@@ -60,7 +63,8 @@ fn assert_close(what: &str, got: &Value, want: &Value, tol: f64) {
 fn assert_sha256_hex(what: &str, got: &str, want: &str) {
     assert_eq!(got.len(), 64, "{what}: not a sha256 hex string: {got}");
     assert!(
-        got.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        got.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
         "{what}: must be lowercase hex: {got}"
     );
     assert_eq!(got, want, "{what}: must be bit-for-bit");
@@ -124,7 +128,10 @@ fn topo_order(graph: &BTreeMap<String, Vec<String>>, nodes: &BTreeSet<String>) -
         for dep in &graph[id.as_str()] {
             if nodes.contains(dep) {
                 *indegree.get_mut(id.as_str()).unwrap() += 1;
-                dependents.entry(dep.as_str()).or_default().push(id.as_str());
+                dependents
+                    .entry(dep.as_str())
+                    .or_default()
+                    .push(id.as_str());
             }
         }
     }
@@ -195,7 +202,10 @@ fn wasm_core_conforms_to_quilt_compat_1() {
     assert_eq!(g["contract"].as_str(), Some("quilt-compat/1"));
     assert_eq!(g["spec"]["edge_schema_v"].as_u64(), Some(1));
     println!("=== wasm-core conformance (web tier: quilt-core-wasm) ===");
-    println!("contract: {}  golden: compat/golden.json", g["contract"].as_str().unwrap());
+    println!(
+        "contract: {}  golden: compat/golden.json",
+        g["contract"].as_str().unwrap()
+    );
 
     // (a) value cell read -----------------------------------------------------
 
@@ -205,14 +215,12 @@ fn wasm_core_conforms_to_quilt_compat_1() {
         for v in vectors {
             let cell = v["cell"].as_str().unwrap();
             let got = engine.get(cell).expect("get");
-            assert_close(
-                &format!("(a) value read {cell}"),
-                &got,
-                &v["expect"],
-                0.0,
-            );
+            assert_close(&format!("(a) value read {cell}"), &got, &v["expect"], 0.0);
         }
-        println!("  [a] value cell read .............. PASS ({} vectors)", vectors.len());
+        println!(
+            "  [a] value cell read .............. PASS ({} vectors)",
+            vectors.len()
+        );
     }
 
     // (b) formula cell eval ----------------------------------------------------
@@ -272,7 +280,9 @@ fn wasm_core_conforms_to_quilt_compat_1() {
         );
 
         let mut engine = fresh_engine(&g);
-        let declared = section["engine_dependency_graph_must_match"].as_object().unwrap();
+        let declared = section["engine_dependency_graph_must_match"]
+            .as_object()
+            .unwrap();
         for (cell, deps) in declared {
             let got = engine.dependencies(cell).expect("cell exists");
             let mut expected: Vec<String> = deps
@@ -292,7 +302,9 @@ fn wasm_core_conforms_to_quilt_compat_1() {
             .expect("push");
         let final_level = engine.get("bilge.level").unwrap();
         assert_close("(c) post-mutation read", &final_level, &json!(85.0), 0.0);
-        println!("  [c] propagation order ........... PASS (topo order + wasm-engine graph agrees)");
+        println!(
+            "  [c] propagation order ........... PASS (topo order + wasm-engine graph agrees)"
+        );
     }
 
     // (d) edge record -------------------------------------------------------------
@@ -323,7 +335,10 @@ fn wasm_core_conforms_to_quilt_compat_1() {
                 v["expect"]["provenance"].as_str().unwrap(),
             );
         }
-        println!("  [d] edge record ................. PASS ({} vectors)", vectors.len());
+        println!(
+            "  [d] edge record ................. PASS ({} vectors)",
+            vectors.len()
+        );
     }
 
     // (e) ledger chain-hash + reconcile ---------------------------------------------
@@ -345,9 +360,14 @@ fn wasm_core_conforms_to_quilt_compat_1() {
             );
         }
 
-        for (entry, want) in ledger.entries().iter().zip(section["entries"].as_array().unwrap()) {
+        for (entry, want) in ledger
+            .entries()
+            .iter()
+            .zip(section["entries"].as_array().unwrap())
+        {
             assert_eq!(
-                entry.seq, want["seq"].as_u64().unwrap(),
+                entry.seq,
+                want["seq"].as_u64().unwrap(),
                 "(e) seq must be contiguous from 1"
             );
             assert_sha256_hex(
@@ -371,7 +391,10 @@ fn wasm_core_conforms_to_quilt_compat_1() {
         let want = &section["reconcile"];
         assert_eq!(report.cell_id, cell, "(e) reconcile cell_id");
         assert_eq!(report.entries, want["entries"].as_u64().unwrap() as usize);
-        assert_eq!(report.open_inputs, want["open_inputs"].as_u64().unwrap() as usize);
+        assert_eq!(
+            report.open_inputs,
+            want["open_inputs"].as_u64().unwrap() as usize
+        );
         assert_eq!(
             report.matched_pairs,
             want["matched_pairs"].as_u64().unwrap() as usize
@@ -429,7 +452,11 @@ fn wasm_ledger_chain_is_bit_for_bit_identical_to_native_reference_tier() {
                 rec["ts"].as_f64().unwrap() as u64,
             );
         }
-        (l.chain_hash(), l.verify_chain().intact, l.reconcile().balanced)
+        (
+            l.chain_hash(),
+            l.verify_chain().intact,
+            l.reconcile().balanced,
+        )
     };
     let run_native = || {
         let mut l = quilt_core::CellLedger::with_genesis(
@@ -444,12 +471,19 @@ fn wasm_ledger_chain_is_bit_for_bit_identical_to_native_reference_tier() {
                 rec["ts"].as_f64().unwrap() as u64,
             );
         }
-        (l.chain_hash(), l.verify_chain().intact, l.reconcile().balanced)
+        (
+            l.chain_hash(),
+            l.verify_chain().intact,
+            l.reconcile().balanced,
+        )
     };
 
     let wasm = run_wasm();
     let native = run_native();
-    assert_eq!(wasm, native, "wasm and native ledger tiers must agree bit-for-bit");
+    assert_eq!(
+        wasm, native,
+        "wasm and native ledger tiers must agree bit-for-bit"
+    );
     assert_eq!(
         wasm.0,
         g["op_e_chain"]["chain_hash"].as_str().unwrap(),

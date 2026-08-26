@@ -76,8 +76,7 @@ pub struct QuiltEngine {
 /// cell id, so the C surface can stay handle-free for ledger operations
 /// (the task's `quilt_ledger_record(cell_id, …)` shape). Keyed by the
 /// stable cell address, exactly like the wire edge's `cell` field.
-static LEDGERS: Lazy<Mutex<HashMap<String, CellLedger>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static LEDGERS: Lazy<Mutex<HashMap<String, CellLedger>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 thread_local! {
     /// The last error message produced on this thread. Borrowed by
@@ -99,8 +98,9 @@ fn clear_err() {
 }
 
 fn set_err(msg: impl Into<String>) {
-    let c = CString::new(msg.into())
-        .unwrap_or_else(|_| CString::new("quilt-cabi: error message contained an interior NUL").unwrap());
+    let c = CString::new(msg.into()).unwrap_or_else(|_| {
+        CString::new("quilt-cabi: error message contained an interior NUL").unwrap()
+    });
     LAST_ERROR.with(|slot| *slot.borrow_mut() = c);
 }
 
@@ -224,8 +224,8 @@ pub extern "C" fn quilt_engine_load_sheet(engine: *mut QuiltEngine, yaml: *const
     return_code(catch_panics(|| {
         let engine = unsafe { borrow_engine(engine)? };
         let yaml = unsafe { borrow_cstr("quilt_engine_load_sheet: yaml", yaml)? };
-        let sheet = quilt_core::parse_sheet(yaml)
-            .map_err(|e| format!("quilt_engine_load_sheet: {e}"))?;
+        let sheet =
+            quilt_core::parse_sheet(yaml).map_err(|e| format!("quilt_engine_load_sheet: {e}"))?;
         engine
             .inner
             .load_sheet(sheet)
@@ -249,7 +249,10 @@ unsafe fn borrow_engine<'a>(ptr: *mut QuiltEngine) -> FfiResult<&'a QuiltEngine>
 /// `"\"idle\""`). Evaluates formula cells first. The returned string is
 /// library-allocated: free it with [`quilt_string_free`]. `NULL` on error.
 #[no_mangle]
-pub extern "C" fn quilt_engine_get(engine: *mut QuiltEngine, cell_id: *const c_char) -> *mut c_char {
+pub extern "C" fn quilt_engine_get(
+    engine: *mut QuiltEngine,
+    cell_id: *const c_char,
+) -> *mut c_char {
     clear_err();
     return_string(catch_panics(|| {
         let engine = unsafe { borrow_engine(engine)? };
@@ -259,7 +262,10 @@ pub extern "C" fn quilt_engine_get(engine: *mut QuiltEngine, cell_id: *const c_c
             .get(cell_id, CallerContext::default())
             .map_err(|e| format!("quilt_engine_get: {e}"))?;
         if let Some(err) = value.error {
-            return Err(format!("quilt_engine_get: cell {cell_id} errored: {}", err.message));
+            return Err(format!(
+                "quilt_engine_get: cell {cell_id} errored: {}",
+                err.message
+            ));
         }
         serde_json::to_string(&value.data).map_err(|e| format!("quilt_engine_get: {e}"))
     }))
@@ -279,8 +285,7 @@ pub extern "C" fn quilt_engine_set(
     return_code(catch_panics(|| {
         let engine = unsafe { borrow_engine(engine)? };
         let cell_id = unsafe { borrow_cstr("quilt_engine_set: cell_id", cell_id)? };
-        let value =
-            unsafe { borrow_cstr("quilt_engine_set: value_json", value_json)? };
+        let value = unsafe { borrow_cstr("quilt_engine_set: value_json", value_json)? };
         let value = parse_json("quilt_engine_set: value_json", value)?;
         engine
             .inner
@@ -308,8 +313,7 @@ pub extern "C" fn quilt_ledger_init(
     clear_err();
     return_code(catch_panics(|| {
         let cell_id = unsafe { borrow_cstr("quilt_ledger_init: cell_id", cell_id)? };
-        let genesis =
-            unsafe { borrow_cstr("quilt_ledger_init: genesis_json", genesis_json)? };
+        let genesis = unsafe { borrow_cstr("quilt_ledger_init: genesis_json", genesis_json)? };
         let genesis = parse_json("quilt_ledger_init: genesis_json", genesis)?;
         let mut books = LEDGERS
             .lock()
@@ -319,7 +323,10 @@ pub extern "C" fn quilt_ledger_init(
                 "quilt_ledger_init: ledger for '{cell_id}' already exists (a genesis cannot be retrofitted)"
             ));
         }
-        books.insert(cell_id.to_string(), CellLedger::with_genesis(cell_id, genesis, ts_millis));
+        books.insert(
+            cell_id.to_string(),
+            CellLedger::with_genesis(cell_id, genesis, ts_millis),
+        );
         Ok(())
     }))
 }

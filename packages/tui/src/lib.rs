@@ -169,16 +169,8 @@ pub fn render(state: &TuiState) -> String {
     for i in state.view_top..end {
         let row = &state.cells[i];
         let marker = if i == state.selected { ">" } else { " " };
-        let prefix = if i == state.selected {
-            REVERSED
-        } else {
-            ""
-        };
-        let suffix = if i == state.selected {
-            RESET
-        } else {
-            RESET
-        };
+        let prefix = if i == state.selected { REVERSED } else { "" };
+        let suffix = if i == state.selected { RESET } else { RESET };
         out.push_str(&format!(
             "{prefix}{marker} {id:<20} {kind_color}{kind:<10}{RESET} {status_color}{status:<8}{RESET} {value}{suffix}\n",
             marker = marker,
@@ -370,10 +362,8 @@ impl Tui {
                         self.state.edit_buffer = row.value.clone();
                         self.state.status = Some(format!("setting {}", row.id));
                     } else {
-                        self.state.status = Some(format!(
-                            "cannot set: {} is a {:?} cell",
-                            row.id, row.kind
-                        ));
+                        self.state.status =
+                            Some(format!("cannot set: {} is a {:?} cell", row.id, row.kind));
                     }
                 }
                 TuiAction::Continue

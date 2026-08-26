@@ -39,18 +39,18 @@
 
 pub mod api;
 pub mod formula;
-pub mod program;
-pub mod value;
-pub mod sensor;
 pub mod io;
 pub mod listener;
+pub mod program;
 pub mod router;
+pub mod sensor;
+pub mod value;
 
 pub use api::{evaluate_api, ApiExecutor, ApiExecutorRef};
 pub use formula::{evaluate_formula, FormulaEngine};
-pub use program::{evaluate_program, ProgramRuntime};
-pub use value::evaluate_value;
-pub use sensor::make_sensor_value;
 pub use io::make_io_value;
 pub use listener::fire_listener;
+pub use program::{evaluate_program, ProgramRuntime};
 pub use router::evaluate_router;
+pub use sensor::make_sensor_value;
+pub use value::evaluate_value;

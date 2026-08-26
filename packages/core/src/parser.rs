@@ -65,8 +65,7 @@ use crate::types::{CellDef, CellKind, RouteTarget, RouterRule, SheetDef};
 /// Validates the sheet: checks for duplicate ids, kind-specific
 /// required fields, and (basic) well-formedness.
 pub fn parse_sheet(source: &str) -> Result<SheetDef> {
-    let sheet: SheetDef = serde_yml::from_str(source)
-        .map_err(|e| Error::Yaml(e.to_string()))?;
+    let sheet: SheetDef = serde_yml::from_str(source).map_err(|e| Error::Yaml(e.to_string()))?;
     validate_sheet(&sheet)?;
     Ok(sheet)
 }
@@ -74,8 +73,7 @@ pub fn parse_sheet(source: &str) -> Result<SheetDef> {
 /// Parse a sheet from a YAML file. Convenience wrapper around
 /// `parse_sheet`.
 pub fn parse_sheet_file(path: impl AsRef<Path>) -> Result<SheetDef> {
-    let source = std::fs::read_to_string(path.as_ref())
-        .map_err(|e| Error::other(e.to_string()))?;
+    let source = std::fs::read_to_string(path.as_ref()).map_err(|e| Error::other(e.to_string()))?;
     parse_sheet(&source)
 }
 
@@ -232,11 +230,7 @@ fn validate_cell(cell: &CellDef) -> Result<()> {
 
 /// Build a `CellDef` programmatically. Used by integration tests to
 /// avoid writing YAML by hand.
-pub fn cell(
-    id: &str,
-    kind: CellKind,
-    build: impl FnOnce(&mut CellDef),
-) -> CellDef {
+pub fn cell(id: &str, kind: CellKind, build: impl FnOnce(&mut CellDef)) -> CellDef {
     let def = CellDef {
         id: id.to_string(),
         kind,

@@ -50,8 +50,8 @@ pub async fn serve_stdio() -> Result<()> {
 pub fn build_server(sheet_path: Option<&str>) -> Result<QuiltMcpServer> {
     let engine = QuiltEngine::new("mcp").into_arc();
     if let Some(path) = sheet_path {
-        let source = std::fs::read_to_string(path)
-            .map_err(|e| anyhow::anyhow!("read {}: {}", path, e))?;
+        let source =
+            std::fs::read_to_string(path).map_err(|e| anyhow::anyhow!("read {}: {}", path, e))?;
         let sheet = parse_sheet(&source)?;
         engine.load_sheet(sheet)?;
     }
@@ -310,16 +310,16 @@ impl ServerHandler for QuiltMcpServer {
         // Issue #8 (option A): stop pinning the oldest protocol version; adopt
         // rmcp's LATEST (2025-11-25) and track it on future upgrades.
         .with_protocol_version(ProtocolVersion::LATEST)
-            .with_server_info(Implementation::new(
-                format!("quilt-mcp ({} cells)", cell_count),
-                env!("CARGO_PKG_VERSION"),
-            ))
-            .with_instructions(
-                "Quilt MCP — every cell in the loaded sheet is exposed as a tool. \
+        .with_server_info(Implementation::new(
+            format!("quilt-mcp ({} cells)", cell_count),
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .with_instructions(
+            "Quilt MCP — every cell in the loaded sheet is exposed as a tool. \
                  Use `cells_list` to see what's available, then call any cell with \
                  `cell_get` (read), `cell_set` (write), `cell_call` (capability), \
                  or `cell_push` (sensor/IO input).",
-            )
+        )
     }
 
     async fn list_resources(
@@ -358,11 +358,13 @@ impl ServerHandler for QuiltMcpServer {
                 axes: None,
                 cells: cells.iter().map(|c| c.def.clone()).collect(),
             };
-            let body = serialize_sheet(&sheet).map_err(|e| ErrorData::new(
-                ErrorCode::INTERNAL_ERROR,
-                format!("failed to serialize sheet: {}", e),
-                None,
-            ))?;
+            let body = serialize_sheet(&sheet).map_err(|e| {
+                ErrorData::new(
+                    ErrorCode::INTERNAL_ERROR,
+                    format!("failed to serialize sheet: {}", e),
+                    None,
+                )
+            })?;
             Ok(ReadResourceResult::new(vec![ResourceContents::text(body, uri)]).into())
         } else {
             Err(ErrorData::new(

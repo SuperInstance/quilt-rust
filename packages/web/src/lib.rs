@@ -202,7 +202,10 @@ async fn events(
 async fn cell_events(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Sse<impl tokio_stream::Stream<Item = std::result::Result<SseEvent, Infallible>>>, (StatusCode, String)> {
+) -> Result<
+    Sse<impl tokio_stream::Stream<Item = std::result::Result<SseEvent, Infallible>>>,
+    (StatusCode, String),
+> {
     let engine = Arc::clone(&state.engine);
     // Subscribe to the cell. The handle's rx is a sync
     // crossbeam channel, so we bridge it to an async stream
@@ -212,16 +215,14 @@ async fn cell_events(
         .map_err(|e| (StatusCode::NOT_FOUND, format!("{e}")))?;
     let cell_id = id.clone();
     let (async_tx, mut async_rx) = tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
-    std::thread::spawn(move || {
-        loop {
-            match handle.rx.recv() {
-                Ok(ev) => {
-                    if async_tx.send(ev).is_err() {
-                        break;
-                    }
+    std::thread::spawn(move || loop {
+        match handle.rx.recv() {
+            Ok(ev) => {
+                if async_tx.send(ev).is_err() {
+                    break;
                 }
-                Err(_) => break,
             }
+            Err(_) => break,
         }
     });
     let stream = async_stream::stream! {
