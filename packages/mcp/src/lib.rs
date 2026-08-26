@@ -25,7 +25,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use quilt_core::{parse_sheet, CallerContext, QuiltEngine};
+use quilt_core::{parse_sheet, serialize_sheet, CallerContext, QuiltEngine, SheetDef};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
@@ -299,8 +299,17 @@ impl QuiltMcpServer {
 impl ServerHandler for QuiltMcpServer {
     fn get_info(&self) -> ServerInfo {
         let cell_count = self.engine.list_cells().len();
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_protocol_version(ProtocolVersion::V_2024_11_05)
+        ServerInfo::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                // Issue #7 (option A): the resource handlers are real — advertise
+                // them so capability-gating clients can reach the sheet resource.
+                .enable_resources()
+                .build(),
+        )
+        // Issue #8 (option A): stop pinning the oldest protocol version; adopt
+        // rmcp's LATEST (2025-11-25) and track it on future upgrades.
+        .with_protocol_version(ProtocolVersion::LATEST)
             .with_server_info(Implementation::new(
                 format!("quilt-mcp ({} cells)", cell_count),
                 env!("CARGO_PKG_VERSION"),
@@ -338,11 +347,22 @@ impl ServerHandler for QuiltMcpServer {
         if uri.starts_with("quilt://sheet/") {
             let cells = self.engine.list_cells();
             let sheet_id = self.engine.id().to_string();
-            let body = format!(
-                "# Quilt sheet (read-only snapshot)\n# {}\n# {} cells\n",
-                sheet_id,
-                cells.len()
-            );
+            // Issue #7: advertise promised real YAML — rebuild the sheet from the
+            // live cell defs (immutable after load) and serialize it properly,
+            // instead of the old header-comment stub.
+            let sheet = SheetDef {
+                id: sheet_id.clone(),
+                title: None,
+                description: None,
+                version: None,
+                axes: None,
+                cells: cells.iter().map(|c| c.def.clone()).collect(),
+            };
+            let body = serialize_sheet(&sheet).map_err(|e| ErrorData::new(
+                ErrorCode::INTERNAL_ERROR,
+                format!("failed to serialize sheet: {}", e),
+                None,
+            ))?;
             Ok(ReadResourceResult::new(vec![ResourceContents::text(body, uri)]).into())
         } else {
             Err(ErrorData::new(
