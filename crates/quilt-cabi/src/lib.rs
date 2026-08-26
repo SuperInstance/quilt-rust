@@ -1,3 +1,6 @@
+#![allow(clippy::missing_safety_doc)] // C ABI: all ptr fns documented at module level; validity contract in the module docs
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! # quilt-cabi — the stable C ABI over the native quilt core
 //!
 //! ## Role in the system
@@ -207,7 +210,7 @@ pub extern "C" fn quilt_engine_new() -> *mut QuiltEngine {
 
 /// Destroy an engine created by [`quilt_engine_new`]. Tolerates `NULL`.
 #[no_mangle]
-pub extern "C" fn quilt_engine_free(engine: *mut QuiltEngine) {
+pub unsafe extern "C" fn quilt_engine_free(engine: *mut QuiltEngine) {
     clear_err();
     if !engine.is_null() {
         drop(unsafe { Box::from_raw(engine) });
@@ -219,7 +222,7 @@ pub extern "C" fn quilt_engine_free(engine: *mut QuiltEngine) {
 /// `yaml` is borrowed for the call only. Returns `0` on success, `-1` on a
 /// parse or load error (see [`quilt_last_error`]).
 #[no_mangle]
-pub extern "C" fn quilt_engine_load_sheet(engine: *mut QuiltEngine, yaml: *const c_char) -> c_int {
+pub unsafe extern "C" fn quilt_engine_load_sheet(engine: *mut QuiltEngine, yaml: *const c_char) -> c_int {
     clear_err();
     return_code(catch_panics(|| {
         let engine = unsafe { borrow_engine(engine)? };
@@ -249,7 +252,7 @@ unsafe fn borrow_engine<'a>(ptr: *mut QuiltEngine) -> FfiResult<&'a QuiltEngine>
 /// `"\"idle\""`). Evaluates formula cells first. The returned string is
 /// library-allocated: free it with [`quilt_string_free`]. `NULL` on error.
 #[no_mangle]
-pub extern "C" fn quilt_engine_get(engine: *mut QuiltEngine, cell_id: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn quilt_engine_get(engine: *mut QuiltEngine, cell_id: *const c_char) -> *mut c_char {
     clear_err();
     return_string(catch_panics(|| {
         let engine = unsafe { borrow_engine(engine)? };
@@ -270,7 +273,7 @@ pub extern "C" fn quilt_engine_get(engine: *mut QuiltEngine, cell_id: *const c_c
 /// cells this is exactly a push. `value_json` is any JSON value text.
 /// Returns `0` on success, `-1` on error.
 #[no_mangle]
-pub extern "C" fn quilt_engine_set(
+pub unsafe extern "C" fn quilt_engine_set(
     engine: *mut QuiltEngine,
     cell_id: *const c_char,
     value_json: *const c_char,
@@ -300,7 +303,7 @@ pub extern "C" fn quilt_engine_set(
 /// cell — retrofitting a genesis would fork the chain. Returns `0` on
 /// success.
 #[no_mangle]
-pub extern "C" fn quilt_ledger_init(
+pub unsafe extern "C" fn quilt_ledger_init(
     cell_id: *const c_char,
     genesis_json: *const c_char,
     ts_millis: u64,
@@ -333,7 +336,7 @@ pub extern "C" fn quilt_ledger_init(
 /// `imbalance` — the ledger never fakes a number). Use [`quilt_ledger_init`]
 /// first when the golden chain roots are required. `NULL` on error.
 #[no_mangle]
-pub extern "C" fn quilt_ledger_record(
+pub unsafe extern "C" fn quilt_ledger_record(
     cell_id: *const c_char,
     input_json: *const c_char,
     output_json: *const c_char,
@@ -363,7 +366,7 @@ pub extern "C" fn quilt_ledger_record(
 /// Returns `1` if intact, `0` if the chain is broken (tamper evidence),
 /// `-1` if no such ledger exists.
 #[no_mangle]
-pub extern "C" fn quilt_ledger_verify(cell_id: *const c_char) -> c_int {
+pub unsafe extern "C" fn quilt_ledger_verify(cell_id: *const c_char) -> c_int {
     clear_err();
     let result = catch_panics(|| {
         let cell_id = unsafe { borrow_cstr("quilt_ledger_verify: cell_id", cell_id)? };
@@ -391,7 +394,7 @@ pub extern "C" fn quilt_ledger_verify(cell_id: *const c_char) -> c_int {
 /// (the same fields `compat/golden.json` op (e) pins). Free with
 /// [`quilt_string_free`]; `NULL` on error.
 #[no_mangle]
-pub extern "C" fn quilt_ledger_reconcile(cell_id: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn quilt_ledger_reconcile(cell_id: *const c_char) -> *mut c_char {
     clear_err();
     return_string(catch_panics(|| {
         let cell_id = unsafe { borrow_cstr("quilt_ledger_reconcile: cell_id", cell_id)? };
@@ -410,7 +413,7 @@ pub extern "C" fn quilt_ledger_reconcile(cell_id: *const c_char) -> *mut c_char 
 /// empty ledger — the genesis commit (identity + genesis + every
 /// transaction, in one hash). Free with [`quilt_string_free`].
 #[no_mangle]
-pub extern "C" fn quilt_ledger_chain_hash(cell_id: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn quilt_ledger_chain_hash(cell_id: *const c_char) -> *mut c_char {
     clear_err();
     return_string(catch_panics(|| {
         let cell_id = unsafe { borrow_cstr("quilt_ledger_chain_hash: cell_id", cell_id)? };
@@ -454,7 +457,7 @@ pub extern "C" fn quilt_ledgers_reset() -> c_int {
 /// use a different allocator. Tolerates `NULL`. Passing any other pointer
 /// is undefined behavior.
 #[no_mangle]
-pub extern "C" fn quilt_string_free(s: *mut c_char) {
+pub unsafe extern "C" fn quilt_string_free(s: *mut c_char) {
     clear_err();
     if !s.is_null() {
         drop(unsafe { CString::from_raw(s) });

@@ -121,7 +121,7 @@ fn init(name: &str) -> Result<()> {
     Ok(())
 }
 
-async fn run_sheet(file: &PathBuf) -> Result<()> {
+async fn run_sheet(file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     println!("loaded {} ({} cells)", file.display(), engine.list_cells().len());
     for cell in engine.list_cells() {
@@ -131,24 +131,25 @@ async fn run_sheet(file: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-async fn serve_mcp(file: &PathBuf) -> Result<()> {
-    let sheet = parse_sheet_file(file)?;
-    let engine = QuiltEngine::new("mcp").into_arc();
-    engine.load_sheet(sheet)?;
-    eprintln!("quilt-mcp: serving {} ({} cells) on stdio", file.display(), engine.list_cells().len());
+async fn serve_mcp(file: &std::path::Path) -> Result<()> {
+    // VESSEL-FIT finding #1: load the sheet INTO the served server —
+    // previously we parsed it into an abandoned engine and served an empty one
+    // (banner said N cells, cells_list returned []).
+    let server = quilt_mcp::build_server(Some(file.to_str().expect("sheet path must be UTF-8")))?;
+    eprintln!("quilt-mcp: serving {} on stdio", file.display());
 
     // Run the MCP server. This blocks.
-    quilt_mcp::serve_stdio().await
+    quilt_mcp::serve_server(server).await
 }
 
-async fn get_cell(id: &str, file: &PathBuf) -> Result<()> {
+async fn get_cell(id: &str, file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     let v = engine.get(id, CallerContext::default())?;
     println!("{}", serde_json::to_string_pretty(&v.data)?);
     Ok(())
 }
 
-async fn set_cell(id: &str, value: &str, file: &PathBuf) -> Result<()> {
+async fn set_cell(id: &str, value: &str, file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     let v: serde_json::Value = serde_json::from_str(value)
         .or_else(|_| serde_json::from_str(&format!("\"{}\"", value)))?;
@@ -157,7 +158,7 @@ async fn set_cell(id: &str, value: &str, file: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-async fn inspect(file: &PathBuf) -> Result<()> {
+async fn inspect(file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     let cells = engine.list_cells();
     println!("sheet: {}", file.display());
@@ -172,7 +173,7 @@ async fn inspect(file: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-async fn tui(file: &PathBuf) -> Result<()> {
+async fn tui(file: &std::path::Path) -> Result<()> {
     use quilt_tui::Tui;
     let sheet = parse_sheet_file(file)?;
     let engine = QuiltEngine::new(file.display().to_string()).into_arc();
@@ -185,7 +186,7 @@ async fn tui(file: &PathBuf) -> Result<()> {
 // Helpers
 // =============================================================================
 
-fn load_engine(file: &PathBuf) -> Result<Arc<QuiltEngine>> {
+fn load_engine(file: &std::path::Path) -> Result<Arc<QuiltEngine>> {
     let sheet = parse_sheet_file(file)?;
     let engine = QuiltEngine::new(file.display().to_string()).into_arc();
     engine.load_sheet(sheet)?;

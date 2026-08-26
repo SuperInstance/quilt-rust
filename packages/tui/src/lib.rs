@@ -174,11 +174,10 @@ pub fn render(state: &TuiState) -> String {
         } else {
             ""
         };
-        let suffix = if i == state.selected {
-            RESET
-        } else {
-            RESET
-        };
+        // NOTE: highlight and normal rows previously used the same RESET
+        // suffix (clippy if_same_then_else); the selection styling now comes
+        // from the prefix above, so a single RESET closes both cases.
+        let suffix = RESET;
         out.push_str(&format!(
             "{prefix}{marker} {id:<20} {kind_color}{kind:<10}{RESET} {status_color}{status:<8}{RESET} {value}{suffix}\n",
             marker = marker,

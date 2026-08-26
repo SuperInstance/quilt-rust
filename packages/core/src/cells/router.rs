@@ -166,6 +166,7 @@ fn rule_matches(when: &str, ctx: &CallerContext, input: Option<&Value>) -> bool 
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)] // test fixture style
 mod tests {
     use super::*;
     use crate::types::{

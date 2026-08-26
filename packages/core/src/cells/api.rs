@@ -346,6 +346,7 @@ fn lookup(ctx: &crate::types::CallerContext, path: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)] // test fixture style
 mod tests {
     use super::*;
     use crate::types::{CellDef, CellKind};
