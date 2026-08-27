@@ -936,7 +936,7 @@ fn drive_async_boxed<T: Send + 'static>(
             *slot_for_thread.lock().expect("drive_async mutex poisoned") = Some(result);
         })
         .expect("failed to spawn thread");
-    let _ = join.join().expect("drive_async thread panicked");
+    join.join().expect("drive_async thread panicked");
     // Take the result out. We need to keep the Mutex alive while
     // we hold the lock guard, otherwise the guard would dangle.
     let result = {

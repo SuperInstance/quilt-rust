@@ -158,7 +158,7 @@ impl FormulaEngine {
 
         // Run the AST.
         let result = engine
-            .eval_ast_with_scope::<rhai::Dynamic>(&mut scope, &*self.ast)
+            .eval_ast_with_scope::<rhai::Dynamic>(&mut scope, &self.ast)
             .map_err(|e| Error::ScriptError {
                 cell: "<formula>".into(),
                 message: e.to_string(),
@@ -517,34 +517,35 @@ pub fn dynamic_to_json(d: rhai::Dynamic) -> Value {
     if d.is_unit() {
         return Value::Null;
     }
-    if let Some(b) = d.as_bool().ok() {
+    if let Ok(b) = d.as_bool() {
         return Value::Bool(b);
     }
-    if let Some(i) = d.as_int().ok() {
+    if let Ok(i) = d.as_int() {
         return Value::Number(i.into());
     }
-    if let Some(f) = d.as_float().ok() {
+    if let Ok(f) = d.as_float() {
         if let Some(n) = serde_json::Number::from_f64(f) {
             return Value::Number(n);
         }
     }
-    if let Some(s) = d.clone().into_string().ok() {
+    if let Ok(s) = d.clone().into_string() {
         return Value::String(s);
     }
-    if let Some(arr) = d.clone().into_array().ok() {
+    if let Ok(arr) = d.clone().into_array() {
         let items: Vec<Value> = arr.into_iter().map(dynamic_to_json).collect();
         return Value::Array(items);
     }
-    if let Some(map) = d.clone().into_typed_array::<rhai::Map>().ok() {
+    if let Ok(map) = d.clone().into_typed_array::<rhai::Map>() {
         let _ = map;
     }
-    if let Some(map) = d.into_string().ok() {
+    if let Ok(map) = d.into_string() {
         return Value::String(map);
     }
     Value::Null
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use crate::types::{CellDef, CellKind};

@@ -121,7 +121,7 @@ fn init(name: &str) -> Result<()> {
     Ok(())
 }
 
-async fn run_sheet(file: &PathBuf) -> Result<()> {
+async fn run_sheet(file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     println!(
         "loaded {} ({} cells)",
@@ -135,7 +135,7 @@ async fn run_sheet(file: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-async fn serve_mcp(file: &PathBuf) -> Result<()> {
+async fn serve_mcp(file: &std::path::Path) -> Result<()> {
     let sheet = parse_sheet_file(file)?;
     let engine = QuiltEngine::new("mcp").into_arc();
     engine.load_sheet(sheet)?;
@@ -149,14 +149,14 @@ async fn serve_mcp(file: &PathBuf) -> Result<()> {
     quilt_mcp::serve_stdio().await
 }
 
-async fn get_cell(id: &str, file: &PathBuf) -> Result<()> {
+async fn get_cell(id: &str, file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     let v = engine.get(id, CallerContext::default())?;
     println!("{}", serde_json::to_string_pretty(&v.data)?);
     Ok(())
 }
 
-async fn set_cell(id: &str, value: &str, file: &PathBuf) -> Result<()> {
+async fn set_cell(id: &str, value: &str, file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     let v: serde_json::Value =
         serde_json::from_str(value).or_else(|_| serde_json::from_str(&format!("\"{}\"", value)))?;
@@ -165,7 +165,7 @@ async fn set_cell(id: &str, value: &str, file: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-async fn inspect(file: &PathBuf) -> Result<()> {
+async fn inspect(file: &std::path::Path) -> Result<()> {
     let engine = load_engine(file)?;
     let cells = engine.list_cells();
     println!("sheet: {}", file.display());
@@ -180,7 +180,7 @@ async fn inspect(file: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-async fn tui(file: &PathBuf) -> Result<()> {
+async fn tui(file: &std::path::Path) -> Result<()> {
     use quilt_tui::Tui;
     let sheet = parse_sheet_file(file)?;
     let engine = QuiltEngine::new(file.display().to_string()).into_arc();
@@ -193,7 +193,7 @@ async fn tui(file: &PathBuf) -> Result<()> {
 // Helpers
 // =============================================================================
 
-fn load_engine(file: &PathBuf) -> Result<Arc<QuiltEngine>> {
+fn load_engine(file: &std::path::Path) -> Result<Arc<QuiltEngine>> {
     let sheet = parse_sheet_file(file)?;
     let engine = QuiltEngine::new(file.display().to_string()).into_arc();
     engine.load_sheet(sheet)?;

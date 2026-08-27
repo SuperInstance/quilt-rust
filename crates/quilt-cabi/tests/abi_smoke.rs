@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)] // test fixture style
 //! # quilt-cabi smoke test — the ABI against `compat/golden.json`
 //!
 //! Exercises every exported `extern "C"` symbol over the golden vectors
@@ -42,7 +43,7 @@ fn take(ptr: *mut c_char) -> String {
     let s = unsafe { CStr::from_ptr(ptr) }
         .to_string_lossy()
         .into_owned();
-    quilt_string_free(ptr);
+    unsafe { quilt_string_free(ptr) };
     s
 }
 
@@ -57,12 +58,12 @@ fn c(s: &str) -> CString {
 }
 
 fn get(engine: *mut QuiltEngine, cell: &str) -> String {
-    take(quilt_engine_get(engine, c(cell).as_ptr()))
+    take(unsafe { quilt_engine_get(engine, c(cell).as_ptr()) })
 }
 
 fn set(engine: *mut QuiltEngine, cell: &str, json: &str) {
     assert_eq!(
-        quilt_engine_set(engine, c(cell).as_ptr(), c(json).as_ptr()),
+        unsafe { quilt_engine_set(engine, c(cell).as_ptr(), c(json).as_ptr()) },
         0,
         "set {cell} failed: {}",
         last_error()
@@ -89,7 +90,7 @@ fn quilt_cabi_smoke_against_golden() {
     let engine = quilt_engine_new();
     assert!(!engine.is_null(), "engine_new: {}", last_error());
     assert_eq!(
-        quilt_engine_load_sheet(engine, c(SHEET_YAML).as_ptr()),
+        unsafe { quilt_engine_load_sheet(engine, c(SHEET_YAML).as_ptr()) },
         0,
         "load_sheet: {}",
         last_error()
@@ -146,20 +147,20 @@ fn quilt_cabi_smoke_against_golden() {
     let genesis = json_text(&transcript["genesis"]);
     let genesis_ts = transcript["genesis_ts"].as_f64().unwrap() as u64;
     assert_eq!(
-        quilt_ledger_init(cell.as_ptr(), c(&genesis).as_ptr(), genesis_ts),
+        unsafe { quilt_ledger_init(cell.as_ptr(), c(&genesis).as_ptr(), genesis_ts) },
         0,
         "ledger_init: {}",
         last_error()
     );
     // Retro-init must fail: a genesis cannot be retrofitted.
     assert_eq!(
-        quilt_ledger_init(cell.as_ptr(), c(&genesis).as_ptr(), genesis_ts),
+        unsafe { quilt_ledger_init(cell.as_ptr(), c(&genesis).as_ptr(), genesis_ts) },
         -1
     );
 
     // The empty ledger's chain hash is the genesis commit — the golden
     // root that entry 1's prev-link seals against.
-    let root = take(quilt_ledger_chain_hash(cell.as_ptr()));
+    let root = take(unsafe { quilt_ledger_chain_hash(cell.as_ptr()) });
     assert_eq!(
         root,
         op_e["entries"][0]["prev_hash"].as_str().unwrap(),
@@ -172,12 +173,14 @@ fn quilt_cabi_smoke_against_golden() {
         .iter()
         .zip(op_e["entries"].as_array().unwrap())
     {
-        let seal = take(quilt_ledger_record(
-            cell.as_ptr(),
-            c(&json_text(&rec["input"])).as_ptr(),
-            c(&json_text(&rec["output"])).as_ptr(),
-            rec["ts"].as_f64().unwrap() as u64,
-        ));
+        let seal = take(unsafe {
+            quilt_ledger_record(
+                cell.as_ptr(),
+                c(&json_text(&rec["input"])).as_ptr(),
+                c(&json_text(&rec["output"])).as_ptr(),
+                rec["ts"].as_f64().unwrap() as u64,
+            )
+        });
         assert_eq!(
             seal,
             want["hash"].as_str().unwrap(),
@@ -185,16 +188,21 @@ fn quilt_cabi_smoke_against_golden() {
         );
     }
 
-    assert_eq!(quilt_ledger_verify(cell.as_ptr()), 1, "chain must verify");
-    let head = take(quilt_ledger_chain_hash(cell.as_ptr()));
+    assert_eq!(
+        unsafe { quilt_ledger_verify(cell.as_ptr()) },
+        1,
+        "chain must verify"
+    );
+    let head = take(unsafe { quilt_ledger_chain_hash(cell.as_ptr()) });
     assert_eq!(
         head,
         op_e["chain_hash"].as_str().unwrap(),
         "chain_hash must equal the golden head"
     );
 
-    let report: Value = serde_json::from_str(&take(quilt_ledger_reconcile(cell.as_ptr())))
-        .expect("reconcile returns JSON");
+    let report: Value =
+        serde_json::from_str(&take(unsafe { quilt_ledger_reconcile(cell.as_ptr()) }))
+            .expect("reconcile returns JSON");
     let want = &op_e["reconcile"];
     for field in [
         "entries",
@@ -220,7 +228,7 @@ fn quilt_cabi_smoke_against_golden() {
 
     // -- error discipline ----------------------------------------------------
 
-    let missing = quilt_engine_get(engine, c("no.such.cell").as_ptr());
+    let missing = unsafe { quilt_engine_get(engine, c("no.such.cell").as_ptr()) };
     assert!(
         missing.is_null(),
         "unknown cell must return NULL, not a string"
@@ -229,25 +237,32 @@ fn quilt_cabi_smoke_against_golden() {
         !last_error().is_empty(),
         "last_error must explain the failure"
     );
-    assert_eq!(quilt_ledger_verify(c("no.such.ledger").as_ptr()), -1);
-    let bad = quilt_ledger_record(cell.as_ptr(), c("{not json").as_ptr(), c("1").as_ptr(), 1);
+    assert_eq!(
+        unsafe { quilt_ledger_verify(c("no.such.ledger").as_ptr()) },
+        -1
+    );
+    let bad =
+        unsafe { quilt_ledger_record(cell.as_ptr(), c("{not json").as_ptr(), c("1").as_ptr(), 1) };
     assert!(bad.is_null(), "bad JSON must return NULL");
     assert!(!last_error().is_empty());
     // NULL tolerance: no crash, just an error.
-    assert!(quilt_engine_get(null_mut(), c("x").as_ptr()).is_null());
-    assert_eq!(quilt_engine_load_sheet(null_mut(), std::ptr::null()), -1);
+    assert!(unsafe { quilt_engine_get(null_mut(), c("x").as_ptr()) }.is_null());
+    assert_eq!(
+        unsafe { quilt_engine_load_sheet(null_mut(), std::ptr::null()) },
+        -1
+    );
     println!(
         "  [x] error discipline ............ PASS (NULL returns + last_error + NULL-tolerance)"
     );
 
-    quilt_engine_free(engine);
+    unsafe { quilt_engine_free(engine) };
     println!("RESULT: PASS — quilt-cabi conforms to golden.json ops (a), (b), (e)");
 }
 
 #[test]
 fn cstr_pointer_null_handling_is_documented_contract() {
     // quilt_string_free(NULL) and quilt_engine_free(NULL) must be no-ops.
-    quilt_string_free(null_mut());
-    quilt_engine_free(null_mut());
+    unsafe { quilt_string_free(null_mut()) };
+    unsafe { quilt_engine_free(null_mut()) };
     assert_eq!(quilt_ledgers_reset(), 0);
 }

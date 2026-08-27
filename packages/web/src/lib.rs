@@ -61,14 +61,9 @@ impl AppState {
         let all_sub = engine.subscribe_all();
         let tx_clone = tx.clone();
         std::thread::spawn(move || {
-            loop {
-                match all_sub.rx.recv() {
-                    Ok(ev) => {
-                        if tx_clone.send(ev).is_err() {
-                            // No subscribers; keep polling.
-                        }
-                    }
-                    Err(_) => break,
+            while let Ok(ev) = all_sub.rx.recv() {
+                if tx_clone.send(ev).is_err() {
+                    // No subscribers; keep polling.
                 }
             }
         });
@@ -215,14 +210,11 @@ async fn cell_events(
         .map_err(|e| (StatusCode::NOT_FOUND, format!("{e}")))?;
     let cell_id = id.clone();
     let (async_tx, mut async_rx) = tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
-    std::thread::spawn(move || loop {
-        match handle.rx.recv() {
-            Ok(ev) => {
-                if async_tx.send(ev).is_err() {
-                    break;
-                }
+    std::thread::spawn(move || {
+        while let Ok(ev) = handle.rx.recv() {
+            if async_tx.send(ev).is_err() {
+                break;
             }
-            Err(_) => break,
         }
     });
     let stream = async_stream::stream! {

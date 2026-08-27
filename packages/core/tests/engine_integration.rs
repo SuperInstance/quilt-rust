@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)] // test fixture style
 //! # engine_integration.rs
 //!
 //! Integration tests for the `QuiltEngine`.

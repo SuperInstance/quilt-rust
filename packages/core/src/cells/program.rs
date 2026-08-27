@@ -411,13 +411,13 @@ fn dynamic_to_json(d: Dynamic) -> Value {
     if d.is_unit() {
         return Value::Null;
     }
-    if let Some(b) = d.as_bool().ok() {
+    if let Ok(b) = d.as_bool() {
         return Value::Bool(b);
     }
-    if let Some(i) = d.as_int().ok() {
+    if let Ok(i) = d.as_int() {
         return Value::Number(i.into());
     }
-    if let Some(f) = d.as_float().ok() {
+    if let Ok(f) = d.as_float() {
         if let Some(n) = serde_json::Number::from_f64(f) {
             return Value::Number(n);
         }
@@ -443,6 +443,7 @@ fn dynamic_to_json(d: Dynamic) -> Value {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use crate::types::{CellDef, CellKind};

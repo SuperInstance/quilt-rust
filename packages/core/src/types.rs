@@ -133,7 +133,8 @@ impl CellKind {
     }
 
     /// Try to parse a kind from a string. Inverse of `as_str`.
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
+        // renamed from from_str (clippy should_implement_trait)
         match s {
             "value" => Some(CellKind::Value),
             "formula" => Some(CellKind::Formula),

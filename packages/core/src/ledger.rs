@@ -118,7 +118,8 @@ pub mod sha256 {
         }
         padded.extend_from_slice(&bit_len.to_be_bytes());
 
-        for block in padded.chunks_exact(64) {
+        let (blocks, _rem) = padded.as_chunks::<64>();
+        for block in blocks {
             let mut w = [0u32; 64];
             for i in 0..16 {
                 let b = &block[4 * i..4 * i + 4];
