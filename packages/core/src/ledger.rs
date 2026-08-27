@@ -688,6 +688,60 @@ impl CellLedger {
         ticket
     }
 
+    /// Restore a previously recorded entry, verbatim, from an external
+    /// source (a journal replaying the chain back into a fresh ledger).
+    ///
+    /// This is the ledger's recovery path. Unlike `record_with`,
+    /// nothing is re-derived: the entry must prove itself. Four checks
+    /// gate acceptance —
+    ///
+    /// 1. `entry.seq` is exactly this ledger's next sequence number;
+    /// 2. `entry.prev_hash` equals the current chain head (linkage);
+    /// 3. `entry.hash` recomputes from the entry body (the seal — the
+    ///    tamper-evidence check);
+    /// 4. `entry.delta.before` equals the current state (continuity:
+    ///    the history has no gaps).
+    ///
+    /// Only then is the entry accepted and the state advanced to its
+    /// `after`. Any failure is an error: a journal that cannot satisfy
+    /// all four checks is diverging and must be reported upstream,
+    /// never absorbed silently.
+    ///
+    /// Restoring into a ledger built with `new` replays journals that
+    /// were recorded from `new` ledgers (the journal's contract). A
+    /// genesis-ledged journal needs its genesis restored first (future
+    /// journal frame kind).
+    pub fn restore_entry(&mut self, entry: LedgerEntry) -> Result<()> {
+        if entry.seq != self.next_seq {
+            return Err(Error::other(format!(
+                "ledger '{}': restore seq {} != next seq {}",
+                self.cell_id, entry.seq, self.next_seq
+            )));
+        }
+        if entry.prev_hash != self.chain_hash() {
+            return Err(Error::other(format!(
+                "ledger '{}': restore entry {} prev-hash does not link to chain head",
+                self.cell_id, entry.seq
+            )));
+        }
+        if entry.hash != entry.seal() {
+            return Err(Error::other(format!(
+                "ledger '{}': restore entry {} seal does not recompute (tampered or corrupt)",
+                self.cell_id, entry.seq
+            )));
+        }
+        if entry.delta.before != self.state {
+            return Err(Error::other(format!(
+                "ledger '{}': restore entry {} is discontinuous (before != current state)",
+                self.cell_id, entry.seq
+            )));
+        }
+        self.state = entry.delta.after.clone();
+        self.next_seq += 1;
+        self.entries.push(entry);
+        Ok(())
+    }
+
     /// Settle an open input with its output (credit), closing the
     /// double entry and appending it to the chain.
     pub fn settle_output(
@@ -1122,6 +1176,38 @@ mod tests {
         assert!(rec.balanced);
         assert_eq!(rec.open_inputs, 0);
         assert_eq!(ledger.state(), &json!({"answer": 42}));
+    }
+
+    #[test]
+    fn restore_entry_replays_a_chain_verbatim_into_a_fresh_ledger() {
+        let mut writer = CellLedger::new("journal.cell");
+        let e1 = writer.record(json!(1), json!(1), 100);
+        let e2 = writer.record(json!(2), json!(2), 200);
+
+        let mut restored = CellLedger::new("journal.cell");
+        assert!(restored.restore_entry(e1).is_ok());
+        assert!(restored.restore_entry(e2).is_ok());
+        assert_eq!(restored.chain_hash(), writer.chain_hash());
+        assert!(restored.reconcile().balanced);
+        assert_eq!(restored.state(), &json!(2));
+    }
+
+    #[test]
+    fn restore_entry_rejects_gaps_tampering_and_reordering() {
+        let mut writer = CellLedger::new("journal.cell");
+        writer.record(json!(1), json!(1), 100);
+        let e2 = writer.record(json!(2), json!(2), 200);
+
+        // Fresh ledger: entry 2 out of order (seq gap).
+        let mut restored = CellLedger::new("journal.cell");
+        assert!(restored.restore_entry(e2.clone()).is_err());
+
+        // Tampered body: seal check.
+        let mut writer2 = CellLedger::new("journal.cell");
+        let mut e1 = writer2.record(json!(1), json!(1), 100);
+        e1.output.value = json!(999);
+        let mut fresh = CellLedger::new("journal.cell");
+        assert!(fresh.restore_entry(e1).is_err());
     }
 
     #[test]

@@ -59,6 +59,7 @@ pub mod cells;
 pub mod context;
 pub mod engine;
 pub mod error;
+pub mod journal;
 pub mod ledger;
 pub mod parser;
 pub mod types;
@@ -69,6 +70,12 @@ pub use crate::context::{
 };
 pub use crate::engine::{EngineOptions, QuiltEngine, SubscriptionEvent, SubscriptionHandle};
 pub use crate::error::{Error, Result};
+pub use crate::journal::{
+    journal_replay, journal_verify, recover_file, CheckpointFrame, Divergence, DivergenceKind,
+    FrameAck, JournalError, JournalRecorder, JournalWriter, RawFrame, ReplayReport, SheetMetaFrame,
+    SyncPolicy, VerifyOutcome, VerifyReport, WriterStats, ENTRY_CHECKPOINT, ENTRY_LEDGER_ENTRY,
+    ENTRY_SHEET_META, FORMAT_VERSION, HEADER_LEN, MAGIC,
+};
 pub use crate::ledger::{
     CellLedger, ChainAudit, Delta, EntrySide, Hash, LedgerEntry, LedgerOrigin, PendingInput,
     Posting, Provenance, Reconciliation, Replay,
