@@ -39,8 +39,13 @@ use serde::{Deserialize, Serialize};
 
 /// Start the MCP server. Blocks until stdin is closed.
 pub async fn serve_stdio() -> Result<()> {
+    serve_stdio_with(QuiltMcpServer::new()).await
+}
+
+/// Start the MCP server over an existing engine (e.g. one with a sheet
+/// already loaded). Blocks until stdin is closed.
+pub async fn serve_stdio_with(server: QuiltMcpServer) -> Result<()> {
     let transport = rmcp::transport::stdio();
-    let server = QuiltMcpServer::new();
     let service = server.serve(transport).await?;
     service.waiting().await?;
     Ok(())

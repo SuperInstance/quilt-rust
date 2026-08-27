@@ -136,17 +136,21 @@ async fn run_sheet(file: &std::path::Path) -> Result<()> {
 }
 
 async fn serve_mcp(file: &std::path::Path) -> Result<()> {
-    let sheet = parse_sheet_file(file)?;
+    // Load the sheet into the engine the MCP server will actually serve.
+    // (This used to load a local engine and then call `serve_stdio()`,
+    // which constructs a FRESH empty server — every client saw 0 cells
+    // regardless of the sheet. Wire the loaded engine through instead.)
     let engine = QuiltEngine::new("mcp").into_arc();
-    engine.load_sheet(sheet)?;
+    engine.load_sheet(parse_sheet_file(file)?)?;
+    let server = quilt_mcp::QuiltMcpServer::from_engine(engine);
     eprintln!(
         "quilt-mcp: serving {} ({} cells) on stdio",
         file.display(),
-        engine.list_cells().len()
+        server.engine().list_cells().len()
     );
 
     // Run the MCP server. This blocks.
-    quilt_mcp::serve_stdio().await
+    quilt_mcp::serve_stdio_with(server).await
 }
 
 async fn get_cell(id: &str, file: &std::path::Path) -> Result<()> {
