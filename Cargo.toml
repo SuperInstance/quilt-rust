@@ -8,6 +8,7 @@ members = [
     "packages/web",
     "crates/quilt-cabi",
     "crates/quilt-core-wasm",
+    "crates/quilt-wire",
 ]
 
 [workspace.package]
