@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use serde_json::{json, Map, Value};
 
 use crate::frame::{Frame, FrameDecoder, Kind};
+use crate::link::LinkQualityEwma;
 use crate::seq::{SeqTracker, SeqVerdict};
 use crate::walks::{self, Arrival};
 
@@ -28,7 +29,9 @@ pub struct PeerConfig {
     pub medium: String,
     /// Sending-cell name prefix (frame `cell_id` u8 → `"{prefix}-{id}"`).
     pub cell_prefix: String,
-    /// EWMA alpha for link-quality estimates.
+    /// EWMA alpha for link-quality estimates, per the OpenCode design:
+    /// `alpha = 1 - 2^(-1/h)` where `h` is the half-life in frames —
+    /// see [`crate::link::alpha_from_half_life_frames`].
     pub alpha: f64,
 }
 
@@ -58,20 +61,20 @@ struct CellWalk {
     seq: SeqTracker,
     prev_digest: String,
     /// Delivery-ratio EWMA (wired quality).
-    quality: Option<f64>,
-    /// RSSI EWMA in dBm (radio quality) — present only if a driver observed one.
-    rssi_ewma: Option<f64>,
+    quality: LinkQualityEwma,
+    /// RSSI EWMA in dBm (radio quality) — observed only if a driver feeds one.
+    rssi_ewma: LinkQualityEwma,
     gaps_total: u64,
 }
 
 impl CellWalk {
-    fn new() -> Self {
+    fn new(alpha: f64) -> Self {
         CellWalk {
             life: 1,
             seq: SeqTracker::new(),
             prev_digest: walks::GENESIS.to_string(),
-            quality: None,
-            rssi_ewma: None,
+            quality: LinkQualityEwma::from_alpha(alpha),
+            rssi_ewma: LinkQualityEwma::from_alpha(alpha),
             gaps_total: 0,
         }
     }
@@ -125,10 +128,11 @@ impl ArrivalPeer {
 
     fn on_frame(&mut self, frame: Frame, epoch_ms: u64, rssi: Option<i16>) -> String {
         let verdict = {
+            let alpha = self.config.alpha;
             let cell = self
                 .cells
                 .entry(frame.cell_id)
-                .or_insert_with(CellWalk::new);
+                .or_insert_with(|| CellWalk::new(alpha));
             match cell.seq.observe(frame.seq) {
                 SeqVerdict::Start => SeqVerdict::Start,
                 SeqVerdict::Contiguous => SeqVerdict::Contiguous,
@@ -161,20 +165,14 @@ impl ArrivalPeer {
         // Radio: RSSI EWMA (dBm). Wired: delivery-ratio EWMA (0..1),
         // penalized by seq gaps — "app: latency+loss bucket".
         if let Some(r) = rssi {
-            cell.rssi_ewma = Some(match cell.rssi_ewma {
-                Some(q) => q + self.config.alpha * (r as f64 - q),
-                None => r as f64,
-            });
+            cell.rssi_ewma.update(r as f64);
         }
         let penalty = match verdict {
             SeqVerdict::Gap { missing } => (missing as f64 * 0.25).min(1.0),
             _ => 0.0,
         };
-        cell.quality = Some(match cell.quality {
-            Some(q) => q + self.config.alpha * ((1.0 - penalty) - q),
-            None => 1.0 - penalty,
-        });
-        let link_quality = cell.rssi_ewma.or(cell.quality);
+        cell.quality.update(1.0 - penalty);
+        let link_quality = cell.rssi_ewma.value().or(cell.quality.value());
 
         // ---- walks/2 step ----
         let base = format!("{}-{}", self.config.cell_prefix, frame.cell_id);
@@ -254,7 +252,7 @@ impl ArrivalPeer {
     /// in dBm; wired: delivery-ratio EWMA). `None` before any observation.
     pub fn link_quality(&self, cell_id: u8) -> Option<f64> {
         let c = self.cells.get(&cell_id)?;
-        c.rssi_ewma.or(c.quality)
+        c.rssi_ewma.value().or(c.quality.value())
     }
 
     pub fn stats(&self) -> PeerStats {

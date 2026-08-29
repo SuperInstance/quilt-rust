@@ -1,45 +1,58 @@
 /*
- * esp32_cell.ino — the minimal exocortex cell (Rung 5a).
+ * esp32_cell.ino — the minimal exocortex cell (Rung 5a + 5b transport lane).
  *
- * ONE quilt value cell over ONE link (USB-CDC serial @ 115200). Polls a
- * temperature-ish stub at 1 Hz, sends QuiltWire v0 16-byte frames:
+ * ONE quilt value cell over ONE link, selected at compile time (see
+ * qw_transport.h): USB-CDC serial @ 115200 (default), ESP-Now, or BLE.
+ * The SAME QuiltWire v0 16-byte frame rides every road. Polls a
+ * temperature-ish stub at 1 Hz, sends frames:
  *   DELTA when |v - last_sent| > EPS, else a TICK heartbeat every 30 s,
- *   ALARM (redundant fire tolerated) if the reading goes out of band.
+ *   ALARM (redundant fire tolerated) if the reading goes out of band,
+ *   LINKMETA when the radio reports a fresh per-frame RSSI observation.
  * Keeps its own seq; honest retry/backoff on write; dropped frames are
  * counted, never faked — the resulting seq gap IS the reliability signal
  * the desktop peer reads (observed, not declared).
  *
  * DEPENDS ON: quiltwire.h (pure C codec, byte-identical to the Rust
- * link-core; host-tested in test_quiltwire.c).
+ * link-core; host-tested in test_quiltwire.c) and qw_transport.h
+ * (compile-time transport select).
  *
  * TARGETS: any ESP32 devkit. Classic parts: Serial = UART0 through the
  * USB-UART bridge (baud honored). S3/C3 with native USB: Serial = USB CDC
  * (baud ignored by CDC — begin(115200) is harmless and keeps one code path).
  *
  * BUILD (Arduino IDE): install "esp32 by Espressif Systems" boards package,
- * select your board, open this sketch (quiltwire.h must sit next to it),
- * Upload, open Serial Monitor at 115200. PlatformIO equivalent:
+ * select your board, open this sketch (quiltwire.h and qw_transport.h must
+ * sit next to it), Upload, open Serial Monitor at 115200. PlatformIO
+ * equivalent, ESP-Now flavor:
  *   [env:cell] platform = espressif32; framework = arduino
+ *   build_flags = -D QW_TRANSPORT=QW_TRANSPORT_ESPNOW
  *
  * STATUS: *** UNTESTED ON SILICON *** — no board attached. The codec is
- * host-tested (test_quiltwire.c, gcc); the Arduino-specific glue below
- * (Serial CDC behavior, timing) is written to be reviewed by eye and
- * verified the moment hardware arrives. No claims beyond that.
+ * host-tested (test_quiltwire.c, gcc) and the USB-CDC byte path is proven
+ * end-to-end by the pty loopback test; the Arduino/ESP-Now/BLE glue
+ * (Serial CDC behavior, esp_now callbacks, Bluedroid BLE, timing) is
+ * written to be reviewed by eye and verified the moment hardware arrives.
+ * No claims beyond that.
  *
  * WHAT IS DELIBERATELY ABSENT (per LINK-LAYER-FEASIBILITY.md §4.2):
  *   - no timestamps-in-us (no cross-clock claims; the receiver stamps)
- *   - no sender link-quality self-reports (subtext is observed, not declared)
  *   - no routing headers (egocentric — no global addressing)
  *   - no encryption (v0; ESP-Now pairing is a later phase)
  *   - no TLVs on the serial link (bare 16-byte frames; TLV 0x01 rides only
  *     when >= 2 live links exist and the MTU allows — not this firmware)
+ * CHANGED AT RUNG 5b: the cell now MAY declare one link metadata
+ * observation — the radio's own per-frame RSSI, carried as the LINKMETA
+ * value — on radio roads only. USB-CDC still declares nothing (there is
+ * no radio to observe). The desktop stamps its own receiver-side RSSI
+ * independently; the two observations are both data, neither is trusted
+ * to speak for the other.
  */
 
 #include "quiltwire.h"
+#include "qw_transport.h"
 
 // ---- cell identity ----
 static const uint8_t  CELL_ID     = 7;        // demo universe has few cells
-static const uint32_t SERIAL_BAUD = 115200ul;
 
 // ---- sender discipline (mirrored by the Rust twin in
 //      crates/quilt-wire/tests/pty_loopback.rs `firmware_twin_frames`) ----
@@ -59,6 +72,8 @@ static float    last_sent     = NAN;   // last value actually sent
 static uint32_t since_sent    = 0;     // ticks since last send
 static uint32_t frames_sent   = 0;
 static uint32_t frames_dropped = 0;
+static int16_t  rssi_reported = 0;     // last RSSI declared via LINKMETA
+static bool     rssi_declared = false; // no radio observation seen yet
 
 /*
  * Temperature-ish sensor STUB. Honest about being a stub: no real sensor is
@@ -73,10 +88,11 @@ static float sensor_stub(void)
 }
 
 /*
- * Send one QuiltWire frame over Serial with honest retry/backoff.
- * Returns true iff all 16 bytes were accepted by the stream; on failure
- * after SEND_ATTEMPTS tries, returns false and the caller advances seq
- * anyway — the gap is the signal, never a faked send.
+ * Send one QuiltWire frame over the selected transport with honest
+ * retry/backoff. Returns true iff all 16 bytes were accepted by the road
+ * (queued, on the radios — see qw_transport.h); on failure after
+ * SEND_ATTEMPTS tries, returns false and the caller advances seq anyway —
+ * the gap is the signal, never a faked send.
  */
 static bool send_frame(uint8_t kind, float value)
 {
@@ -92,13 +108,13 @@ static bool send_frame(uint8_t kind, float value)
 
     uint32_t delay_ms = BACKOFF_START_MS;
     for (uint8_t attempt = 0; attempt < SEND_ATTEMPTS; attempt++) {
-        size_t n = Serial.write(buf, QW_FRAME_LEN);
+        size_t n = transport_write(buf, QW_FRAME_LEN);
         if (n == QW_FRAME_LEN) {
             frames_sent++;
             return true;
         }
-        // Partial write on a stream API is a wedged/bufferless port
-        // (host not listening, CDC not open). Back off, retry.
+        // Short write on a wired stream is a wedged/bufferless port; zero on
+        // a radio is a dead queue / no BLE peer. Back off, retry.
         delay(delay_ms);
         delay_ms = min(delay_ms * 4ul, BACKOFF_MAX_MS);
     }
@@ -106,18 +122,29 @@ static bool send_frame(uint8_t kind, float value)
     return false;
 }
 
+/*
+ * If the radio has observed a per-frame RSSI since we last declared one,
+ * fire a LINKMETA carrying it (dBm, as the f32 value). Wired serial never
+ * fires: transport_rssi_dbm() returns false, and the road stays silent
+ * about quality — observation happens receiver-side there.
+ */
+static void maybe_declare_rssi(void)
+{
+    int16_t r;
+    if (transport_rssi_dbm(&r) && (!rssi_declared || r != rssi_reported)) {
+        send_frame(QW_KIND_LINKMETA, (float)r);
+        seq++;
+        rssi_reported = r;
+        rssi_declared = true;
+    }
+}
+
 void setup()
 {
-    Serial.begin(SERIAL_BAUD);
-    // Bounded wait for CDC host to open the port (S3 native USB). On
-    // UART-bridge parts this returns immediately once ready.
-    const uint32_t t0 = millis();
-    while (!Serial && (millis() - t0) < 4000ul) {
-        delay(10);
-    }
+    transport_begin();
     // One LINKMETA frame opens the session so the peer sees a genesis-ish
     // arrival before data; value carries the firmware version as float bits.
-    send_frame(QW_KIND_LINKMETA, 0.1f); // fw v0.1
+    send_frame(QW_KIND_LINKMETA, 0.2f); // fw v0.2 (rung 5b: transports)
     seq++; // a frame was consumed (sent or dropped — seq advances either way)
 }
 
@@ -125,6 +152,9 @@ void loop()
 {
     tick++;
     since_sent++;
+
+    // Radio roads: declare a fresh RSSI observation if one arrived.
+    maybe_declare_rssi();
 
     float v = sensor_stub();
 

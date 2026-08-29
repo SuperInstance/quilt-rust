@@ -6,6 +6,7 @@
 //! - Frame layout, endianness, and CRC: [`frame`] (pinned below).
 //! - Stream decoding with resync: [`frame::FrameDecoder`].
 //! - Seq continuity / restart detection: [`seq`].
+//! - Link-quality EWMA (alpha from half-life in frames): [`link`].
 //! - walks/2 chain writer + verifier: [`walks`] (std).
 //! - Desktop peer: [`peer`] (std).
 //!
@@ -50,6 +51,7 @@
 #![deny(unsafe_code)]
 
 pub mod frame;
+pub mod link;
 pub mod seq;
 pub mod tlv;
 
@@ -59,4 +61,5 @@ pub mod peer;
 pub mod walks;
 
 pub use frame::{Frame, FrameDecoder, Kind, FRAME_LEN, MAGIC, VERSION};
+pub use link::LinkQualityEwma;
 pub use seq::{SeqTracker, SeqVerdict};
