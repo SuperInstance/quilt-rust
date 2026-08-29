@@ -6,6 +6,7 @@ members = [
     "packages/cli",
     "packages/tui",
     "packages/web",
+    "crates/field-edge-bridge",
     "crates/quilt-cabi",
     "crates/quilt-core-wasm",
     "crates/quilt-wire",

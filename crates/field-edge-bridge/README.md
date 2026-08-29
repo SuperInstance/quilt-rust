@@ -108,8 +108,13 @@ warm direction (mood+, volume+, cynicism−), a 3-d stand-in.
 
 ```
 field-edge-bridge/
-├── README.md        # this document
-└── bridge_demo.py   # the proof — computes both views, asserts all four identities
+├── README.md            # this document
+├── Cargo.toml           # workspace member: quilt-core + serde only
+├── src/
+│   ├── lib.rs           # the bridge crate
+│   ├── cell_ledger.rs   # CellLedger (append / iter / iter_range) + the record_with chronicle helper
+│   └── field_edge.rs    # FieldEdge — both views of one sealed edge + the four identities
+└── bridge_demo.py       # the standalone numpy proof
 ```
 
 ## Why this matters
@@ -122,5 +127,23 @@ its own first-person edge.
 
 ## Status
 
-Python + numpy only; no build; **not a workspace member** — nothing to
-compile, nothing to commit but these two files. Run it anywhere:
+A workspace crate **and** the numpy demo:
+
+```sh
+cargo test -p field-edge-bridge                        # Rust: identities + ledger sealing
+python3 crates/field-edge-bridge/bridge_demo.py        # numpy only, self-checking
+```
+
+The Rust side is the durable artifact:
+
+- `field_edge::FieldEdge` — both views of one sealed edge, with the four
+  identities as checkable residuals, golden-tested against
+  `compat/golden.json` (`vector-field-edge`, 1e-12).
+- `cell_ledger::CellLedger` — append-only cell history over
+  `quilt_core::CellLedger`'s hash-chained entries: `append(event)`,
+  `iter()`, `iter_range(seq_range)` — the shape a quilt grid viewer's
+  cell-history endpoints read (actor, cause, old/new value, ts, sealed).
+- `cell_ledger::record_with` — the chronicle helper other cell bridges
+  call: it wraps an operation with `(agent_id, ts, before/after field
+  state)` recording, sealed as one `push`-origin entry per
+  `docs/bridge-cell-ledger.md`. Run it anywhere:

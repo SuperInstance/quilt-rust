@@ -1,0 +1,13 @@
+[package]
+name = "field-edge-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Field-edge <-> cell-ledger bridge: the record_with chronicle helper and append-only cell history over quilt-core's sealed ledgers."
+
+[dependencies]
+quilt-core = { path = "../../packages/core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

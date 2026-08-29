@@ -372,7 +372,10 @@ fn pty_loopback_lossy_transport_espnow_sim() {
 
     // ---- seq recovery: loss is observed, never fabricated ----
     let s = peer.stats();
-    assert_eq!(s.frames, LOSSY_DELIVERED as u64, "every delivered frame landed");
+    assert_eq!(
+        s.frames, LOSSY_DELIVERED as u64,
+        "every delivered frame landed"
+    );
     assert_eq!(s.lines, LOSSY_DELIVERED as u64);
     // 9 dropped seqs are each a gap of 1 (the 10th, seq 199, is tail loss and
     // invisible); each swapped pair adds one more missing-on-first-sighting:
