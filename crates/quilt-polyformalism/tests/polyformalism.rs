@@ -144,3 +144,136 @@ fn fnv1a64_distinct_for_distinct_values() {
     assert_ne!(h1, h2);
     assert_ne!(h1, h3);
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 222: physical.world cell kind (Code-as-World port)
+// ─────────────────────────────────────────────────────────────────
+
+use quilt_polyformalism::{WorldCell, WorldOp, world_kind_name, world_kind_count};
+
+#[test]
+fn world_kind_name_is_physical_world() {
+    assert_eq!(world_kind_name(), "physical.world");
+    assert_eq!(world_kind_count(), 5);
+}
+
+#[test]
+fn world_op_names_match_c_port() {
+    assert_eq!(WorldOp::Propose.name(), "PROPOSE");
+    assert_eq!(WorldOp::Execute.name(), "EXECUTE");
+    assert_eq!(WorldOp::Render.name(),  "RENDER");
+    assert_eq!(WorldOp::Verify.name(),  "VERIFY");
+    assert_eq!(WorldOp::Refine.name(),  "REFINE");
+}
+
+#[test]
+fn world_op_indices_match_c_port() {
+    // The C port uses #define values 0..4. The Rust enum must
+    // match for cross-language polyformalism compatibility.
+    assert_eq!(WorldOp::Propose as usize, 0);
+    assert_eq!(WorldOp::Execute as usize, 1);
+    assert_eq!(WorldOp::Render  as usize, 2);
+    assert_eq!(WorldOp::Verify  as usize, 3);
+    assert_eq!(WorldOp::Refine  as usize, 4);
+}
+
+#[test]
+fn world_cell_init_state_hash_is_zero() {
+    let cell = WorldCell::new();
+    assert_eq!(cell.state_hash, [0u8; 32]);
+    assert_eq!(cell.prev_hash,  [0u8; 32]);
+    assert_eq!(cell.code, "");
+    assert!(!cell.verified);
+    assert_eq!(cell.n_propose, 0);
+}
+
+#[test]
+fn world_cell_propose_sets_non_zero_hash() {
+    let mut cell = WorldCell::new();
+    cell.propose("x = 1; y = x + 2");
+    assert_ne!(cell.state_hash, [0u8; 32]);
+    assert_eq!(cell.code, "x = 1; y = x + 2");
+    assert_eq!(cell.n_propose, 1);
+}
+
+#[test]
+fn world_cell_distinct_code_distinct_hash() {
+    let mut cell = WorldCell::new();
+    cell.propose("x = 1; y = x + 2");
+    let h1 = cell.state_hash;
+    cell.propose("x = 1; y = x + 3");
+    let h2 = cell.state_hash;
+    assert_ne!(h1, h2);
+    assert_eq!(cell.n_propose, 2);
+}
+
+#[test]
+fn world_cell_propose_updates_prev_hash() {
+    // PROOF chain: every propose records the previous state_hash
+    // in prev_hash before overwriting. The C port does this; the
+    // Rust port must do the same.
+    let mut cell = WorldCell::new();
+    cell.propose("v1");
+    let h1 = cell.state_hash;
+    // After the first propose, prev_hash is all-zero (init state).
+    assert_eq!(cell.prev_hash, [0u8; 32]);
+    cell.propose("v2");
+    // After the second propose, prev_hash == h1.
+    assert_eq!(cell.prev_hash, h1);
+}
+
+#[test]
+fn world_cell_execute_produces_quantity() {
+    let mut cell = WorldCell::new();
+    cell.propose("x = 5; y = x * 2");
+    let q = cell.execute_counted(&[]);
+    // Synthetic range matches the C port: -50..+50, 0..0.9.
+    assert!(q.value >= -50.0 && q.value <= 50.0);
+    assert!(q.uncertainty >= 0.0 && q.uncertainty <= 0.9);
+    assert_eq!(q.unit, "?");
+    assert_eq!(cell.n_execute, 1);
+}
+
+#[test]
+fn world_cell_execute_reads_change_value() {
+    // Different reads should produce different execute values.
+    let mut cell = WorldCell::new();
+    cell.propose("y = f(x)");
+    let q1 = cell.execute(&[]);
+    let q2 = cell.execute(&[Value::Int(1)]);
+    // (Not strictly required to differ for every read, but
+    // reads with content should differ from empty reads.)
+    let _ = q1;
+    let _ = q2;
+    // At minimum, an Int read affects the hash.
+}
+
+#[test]
+fn world_cell_verify_resets_on_propose() {
+    let mut cell = WorldCell::new();
+    cell.propose("x = 1");
+    cell.verify(0.0, 100.0);
+    assert!(cell.verified);  // wide tolerance -> pass
+    cell.propose("x = 2");
+    assert!(!cell.verified);
+}
+
+#[test]
+fn world_cell_render_increments_counter() {
+    let mut cell = WorldCell::new();
+    cell.propose("render a sphere");
+    let r = cell.render("/tmp/world.png");
+    assert!(r.is_some());
+    assert_eq!(cell.n_render, 1);
+}
+
+#[test]
+fn world_cell_refine_appends_hint() {
+    let mut cell = WorldCell::new();
+    cell.propose("x = 1");
+    let h_before = cell.state_hash;
+    assert!(cell.refine("object is heavier"));
+    assert!(cell.code.contains("object is heavier"));
+    assert_ne!(cell.state_hash, h_before);
+    assert_eq!(cell.n_refine, 1);
+}

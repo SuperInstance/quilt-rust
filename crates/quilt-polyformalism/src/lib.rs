@@ -38,6 +38,7 @@
 
 extern crate alloc;
 use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec::Vec;
 
 /// The 5+1+1+1+1 opcodes (9 total).
@@ -499,6 +500,230 @@ pub fn fnv1a64(v: &Value) -> u64 {
                 mix(&mut h, b);
             }
         }
+    }
+    h
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 222: the `physical.world` cell kind (Code-as-World port)
+// ─────────────────────────────────────────────────────────────────
+//
+// This module mirrors quilt-c/include/quilt/world.h and
+// src/world.c. The polyformalism claim is the *shape*:
+// PROPOSE → EXECUTE → RENDER → VERIFY → REFINE is the same
+// 5-operation abductive discovery loop, in C, in Rust, and
+// (eventually) in every other Quilt substrate.
+
+/// The 5 abductive-loop operations from the Code-as-World paper
+/// (MirroS-Lab, arXiv 2608.27549). These compose on top of the
+/// 5+1+1+1+1 opcodes: a `WorldOp` *uses* the cell model to
+/// represent a physical scene as executable code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorldOp {
+    /// VLM proposes code from observation.
+    Propose = 0,
+    /// The interpreter executes the proposed code.
+    Execute = 1,
+    /// Render the simulation to an image.
+    Render  = 2,
+    /// Verify the simulation matches the observation.
+    Verify  = 3,
+    /// Refine the code (one abductive step).
+    Refine  = 4,
+}
+
+impl WorldOp {
+    /// String name (matches quilt_world_op_name() in C).
+    pub fn name(self) -> &'static str {
+        match self {
+            WorldOp::Propose => "PROPOSE",
+            WorldOp::Execute => "EXECUTE",
+            WorldOp::Render  => "RENDER",
+            WorldOp::Verify  => "VERIFY",
+            WorldOp::Refine  => "REFINE",
+        }
+    }
+
+    /// Total count (5 operations).
+    pub const COUNT: usize = 5;
+}
+
+/// A physical-quantity output: value + uncertainty + unit + verified flag.
+/// This is the kind the Code-as-World paper evaluates on QuantiPhy.
+#[derive(Debug, Clone, Copy)]
+pub struct Quantity {
+    /// The scalar quantity (e.g. -2.3 m/s).
+    pub value: f64,
+    /// The standard error.
+    pub uncertainty: f64,
+    /// The unit (borrowed, ASCII).
+    pub unit: &'static str,
+    /// 1 if the simulation matches the observation.
+    pub verified: bool,
+}
+
+/// A `physical.world` cell. The cell *is* a Python program that
+/// simulates a physical scene; the cell's reads are the program's
+/// inputs; the cell's value is the program's output (a Quantity).
+///
+/// The Rust port holds the program text in a `String`; the C port
+/// uses a heap-allocated `char*`. The shape is the same.
+#[derive(Debug, Clone)]
+pub struct WorldCell {
+    /// The program text (the "code-as-world").
+    pub code: String,
+    /// State hash (FNV-1a of the program text). 32 bytes.
+    pub state_hash: [u8; 32],
+    /// Previous state hash (for the PROOF chain).
+    pub prev_hash: [u8; 32],
+    /// `true` if the abductive loop verified.
+    pub verified: bool,
+    /// Count of `propose` operations.
+    pub n_propose: u32,
+    /// Count of `execute` operations.
+    pub n_execute: u32,
+    /// Count of `render` operations.
+    pub n_render:  u32,
+    /// Count of `verify` operations.
+    pub n_verify:  u32,
+    /// Count of `refine` operations.
+    pub n_refine:  u32,
+}
+
+impl WorldCell {
+    /// Construct an empty cell. The initial state_hash is all-zero
+    /// (matches the C port: memset 0).
+    pub fn new() -> Self {
+        Self {
+            code: String::new(),
+            state_hash: [0u8; 32],
+            prev_hash:  [0u8; 32],
+            verified:   false,
+            n_propose:  0,
+            n_execute:  0,
+            n_render:   0,
+            n_verify:   0,
+            n_refine:   0,
+        }
+    }
+
+    /// Set the program text (BIND). The new state_hash is the
+    /// FNV-1a of the program text. The previous state_hash is
+    /// saved in `prev_hash`. The `verified` flag is reset to false
+    /// (any BIND invalidates verification).
+    pub fn propose(&mut self, code: &str) {
+        self.prev_hash = self.state_hash;
+        self.state_hash = hash_program(code);
+        self.code = code.to_string();
+        self.verified = false;
+        self.n_propose += 1;
+    }
+
+    /// Execute the program. In the C port, the interpreter is a
+    /// stub that returns a synthetic quantity (FNV-1a of the
+    /// code + inputs, in the range -50..+50). The Rust port
+    /// matches this exactly: same shape, same ranges, same
+    /// `unit = "?"` placeholder. A real substrate binding
+    /// (Python exec() on Workers, the Code-as-World-VL-9B
+    /// model for synthesis) replaces the stub.
+    pub fn execute(&self, reads: &[Value]) -> Quantity {
+        let mut h = fnv1a64_str(&self.code);
+        for r in reads {
+            h ^= fnv1a64(r);
+            h = h.wrapping_mul(0x100000001b3);
+        }
+        let value = ((h % 100) as f64) - 50.0;
+        let uncertainty = ((h % 10) as f64) * 0.1;
+        Quantity { value, uncertainty, unit: "?", verified: self.verified }
+    }
+
+    /// Run execute then return a mutable reference. This is the
+    /// `execute` + `n_execute` increment wrapped into one call
+    /// (the C port exposes them as separate ops for PROOF
+    /// audit; in Rust we keep the counters on the cell).
+    pub fn execute_counted(&mut self, reads: &[Value]) -> Quantity {
+        let q = self.execute(reads);
+        self.n_execute += 1;
+        q
+    }
+
+    /// Render the simulation to an image. The C port writes a
+    /// placeholder file; the Rust port's no_std stub just records
+    /// the render count and returns the requested path. A real
+    /// binding would write a PNG via the `image` crate.
+    pub fn render(&mut self, image_path: &str) -> Option<&'static str> {
+        // No filesystem in no_std. The C port's stub succeeds;
+        // the Rust port returns Some(path) to mirror that.
+        self.n_render += 1;
+        // (Real binding would write to image_path.)
+        let _ = image_path;
+        Some("ok")
+    }
+
+    /// Verify the simulation matches an observed value within
+    /// tolerance. Returns 1 if verified.
+    pub fn verify(&mut self, observed: f64, tolerance: f64) -> bool {
+        let q = self.execute(&[]);
+        let diff = q.value - observed;
+        let ok = diff >= -tolerance && diff <= tolerance;
+        self.verified = ok;
+        self.n_verify += 1;
+        ok
+    }
+
+    /// Refine the code (one abductive step). The C port appends
+    /// the hint as a comment; the Rust port does the same.
+    pub fn refine(&mut self, hint: &str) -> bool {
+        // no_std: build the comment string by hand (no format!).
+        let mut new_code = String::with_capacity(self.code.len() + hint.len() + 16);
+        new_code.push_str(&self.code);
+        new_code.push_str("\n# refine: ");
+        new_code.push_str(hint);
+        new_code.push('\n');
+        self.prev_hash = self.state_hash;
+        self.state_hash = hash_program(&new_code);
+        self.code = new_code;
+        self.verified = false;
+        self.n_refine += 1;
+        true
+    }
+}
+
+/// The kind name (matches the C port: `quilt_world_kind_name()`).
+pub fn world_kind_name() -> &'static str {
+    "physical.world"
+}
+
+/// The number of abductive-loop operations (matches the C port:
+/// `quilt_world_kind_count()` = 5).
+pub fn world_kind_count() -> usize {
+    WorldOp::COUNT
+}
+
+/// 32-byte FNV-1a hash of a string (used by WorldCell.state_hash).
+/// The C port spreads a 64-bit FNV-1a across 4 slices; we do the
+/// same here for bit-exact portability with the C tests.
+fn hash_program(s: &str) -> [u8; 32] {
+    let h = fnv1a64_str(s);
+    let mut out = [0u8; 32];
+    for i in 0..4u8 {
+        let slice = h.wrapping_add((i as u64).wrapping_mul(0x9e3779b97f4a7c15));
+        let bytes = slice.to_le_bytes();
+        for j in 0..8 {
+            out[(i as usize) * 8 + j] = bytes[j];
+        }
+    }
+    out
+}
+
+/// FNV-1a 64-bit hash of a string (distinct from `fnv1a64` on
+/// `Value`; the WorldCell hashes the raw program text, not a
+/// tagged Value).
+fn fnv1a64_str(s: &str) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for &b in s.as_bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100000001b3);
     }
     h
 }
