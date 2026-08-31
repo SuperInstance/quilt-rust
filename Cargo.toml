@@ -10,6 +10,7 @@ members = [
     "crates/quilt-cabi",
     "crates/quilt-core-wasm",
     "crates/quilt-wire",
+    "crates/quilt-polyformalism",
 ]
 
 [workspace.package]
