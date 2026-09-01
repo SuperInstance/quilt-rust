@@ -38,3 +38,6 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g3-1` [REJECTED-invalid-expectation] 'a / b' — triage=False (Division by zero detected and the engine treats it as an error) — engine succeeded, model expected error 
 - `g3-2` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine succeeded, model expected error 
 - `g3-3` [REJECTED-no-new-kills] 'min([x, y, z])' — triage=False (The test checks array min logic but the engine rejected it due to value mismatch) — match 
+
+## Generation 4 — targeted — 2026-08-31 19:59:50
+- live mutants: 8 | corpus kills before: 3 | after: 3
