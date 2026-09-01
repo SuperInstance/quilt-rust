@@ -92,3 +92,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g7-1` [REJECTED-invalid-expectation] 'min([c,d,e])' — triage=False (short reason) — engine=null model_expect=[1, 4] 
 - `g7-2` [REJECTED-invalid-expectation] 'a + 100' — triage=False (short reason) — engine=null model_expect=120 
 - `g7-3` [REJECTED-invalid-expectation] 'compass.heading + 10' — triage=False (short reason) — engine=null model_expect="52" 
+
+## Generation 7 — blind — 2026-08-31 20:21:12
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g7-0` [REJECTED-invalid-expectation] 'a / b' — triage=False (short reason) — engine=null model_expect="5" 
+- `g7-1` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 
+- `g7-2` [REJECTED-invalid-expectation] 'a + b' — triage=False (The formula result is stale after the set operation because the cache hasn't bee) — engine=null model_expect="15" 
+- `g7-3` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 

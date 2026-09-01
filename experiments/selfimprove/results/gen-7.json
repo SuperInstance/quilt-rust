@@ -4,50 +4,50 @@
  "candidates": [
   {
    "id": "g7-0",
-   "summary": "Division by zero is a runtime failure producing NULL per engine semantics",
+   "summary": "Division by zero produces NULL; after setting b=1, the result is 5",
    "expr": "a / b",
    "triage_keep": false,
    "triage_reason": "short reason",
    "filter_flagged": true,
    "engine_result": null,
    "valid": false,
-   "validity_note": "engine=null model_expect=\"NULL\"",
+   "validity_note": "engine=null model_expect=\"5\"",
    "verdict": "REJECTED-invalid-expectation"
   },
   {
    "id": "g7-1",
-   "summary": "Array min/max correctly compute over the provided list",
-   "expr": "min([c,d,e])",
+   "summary": "Integer modulo with negative numerator truncates toward zero, yielding -1",
+   "expr": "",
    "triage_keep": false,
    "triage_reason": "short reason",
    "filter_flagged": true,
    "engine_result": null,
    "valid": false,
-   "validity_note": "engine=null model_expect=[1, 4]",
+   "validity_note": "engine errored on case",
    "verdict": "REJECTED-invalid-expectation"
   },
   {
    "id": "g7-2",
-   "summary": "set triggers recomputation of dependents; call reads the fresh value",
-   "expr": "a + 100",
+   "summary": "The formula result is stale after the set operation because the cache hasn't been updated yet",
+   "expr": "a + b",
    "triage_keep": false,
-   "triage_reason": "short reason",
+   "triage_reason": "The formula result is stale after the set operation because the cache hasn't been updated yet.",
    "filter_flagged": true,
    "engine_result": null,
    "valid": false,
-   "validity_note": "engine=null model_expect=120",
+   "validity_note": "engine=null model_expect=\"15\"",
    "verdict": "REJECTED-invalid-expectation"
   },
   {
    "id": "g7-3",
-   "summary": "Dotted cell references are auto-rewritten to cells[\"compass.heading\"] and evaluated correctly",
-   "expr": "compass.heading + 10",
+   "summary": "a>0 && b<2 is false, c>5 is false, so overall expression evaluates to false",
+   "expr": "",
    "triage_keep": false,
    "triage_reason": "short reason",
    "filter_flagged": true,
    "engine_result": null,
    "valid": false,
-   "validity_note": "engine=null model_expect=\"52\"",
+   "validity_note": "engine errored on case",
    "verdict": "REJECTED-invalid-expectation"
   }
  ],
@@ -67,7 +67,7 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutator_raw_len": 1648,
+ "mutator_raw_len": 1593,
  "killed_after": [
   "M06-min-array-max",
   "M10-string-literal-rewrite",
