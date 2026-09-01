@@ -58,3 +58,6 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g5-1` [REJECTED-filter] '' — triage=False (short reason) —  
 - `g5-2` [REJECTED-filter] '' — triage=False (short reason) —  
 - `g5-3` [REJECTED-filter] '' — triage=False (short reason) —  
+
+## Generation 6 — targeted — 2026-08-31 20:11:15
+- live mutants: 8 | corpus kills before: 3 | after: 3
