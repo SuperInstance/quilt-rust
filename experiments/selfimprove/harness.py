@@ -99,8 +99,11 @@ def chat(model: str, system: str, user: str, json_mode: bool, temp: float,
 
 
 def extract_json(text: str):
-    """Pull the outermost JSON array or object out of a model reply."""
+    """Pull the outermost JSON array or object out of a model reply,
+    with light repair for small-model JSON habits."""
     text = re.sub(r"```(json)?", "", text)
+    text = re.sub(r",\s*\]", "]", text)   # trailing commas in arrays
+    text = re.sub(r",\s*\}", "}", text)   # trailing commas in objects
     for a, b in (("[", "]"), ("{", "}")):
         i, j = text.find(a), text.rfind(b)
         if i != -1 and j > i:
@@ -372,6 +375,9 @@ def one_generation(g: int, corpus: list[dict], mutants: list[dict], setup: dict)
     if not isinstance(cands, list):
         cands = [cands] if isinstance(cands, dict) else []
     rec["mutator_raw_len"] = len(raw)
+    if not cands:
+        (RESULTS).mkdir(exist_ok=True)
+        (RESULTS / f"gen-{g}-raw.txt").write_text(raw)
 
     sigs = {signature(c) for c in corpus}
 
