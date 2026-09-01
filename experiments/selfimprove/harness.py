@@ -130,9 +130,20 @@ def val_eq(a, b) -> bool:
 
 
 def reads_diverge(clean_res, mut_res) -> bool:
-    """A mutant diverges on a case if reads/statuses differ, it errored, or panicked."""
-    if mut_res.get("error") or not mut_res.get("ok", False):
-        return True  # error/panic on a case the clean engine handled
+    """True iff the mutant behaves differently from clean on the same case.
+
+    Error-vs-error is NOT divergence (a case that errors on clean must also
+    error on the mutant, the same way, to count as equivalent). The gen-11
+    incident: an erroring case 'killed' 5 mutants that errored identically.
+    """
+    c_err = bool(clean_res.get("error")) or not clean_res.get("ok", False)
+    m_err = bool(mut_res.get("error")) or not mut_res.get("ok", False)
+    if c_err or m_err:
+        if c_err != m_err:
+            return True
+        # both errored — divergence only if the error itself differs
+        return json.dumps(clean_res.get("steps"), sort_keys=True) != \
+            json.dumps(mut_res.get("steps"), sort_keys=True)
     if not val_eq(clean_res.get("reads", []), mut_res.get("reads", [])):
         return True
     return not val_eq(clean_res.get("statuses", []), mut_res.get("statuses", []))

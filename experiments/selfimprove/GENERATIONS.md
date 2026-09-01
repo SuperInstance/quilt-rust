@@ -189,3 +189,12 @@ in place as the honest record.
 
 ## Generation 12 — targeted — 2026-08-31 21:13:31
 - live mutants: 8 | corpus kills before: 8 | after: 8
+
+## ⚠️ RETRACTION — gen 11's g11-1 (21:25)
+
+g11-1 claimed kills on M01/M04/M05/M07/M12 — **all false**. The case was
+`get f` on a nonexistent cell: identical CellNotFound error on clean and every
+mutant. Bug: `reads_diverge` credited ANY mutant error/panic as divergence.
+Fixed: error-vs-error now requires the error itself to differ; g11-1 removed
+from corpus (preserved in git history + results/gen-11.json). True kill
+baseline returns to 3/8.
