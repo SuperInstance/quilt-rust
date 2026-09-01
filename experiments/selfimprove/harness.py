@@ -146,19 +146,36 @@ def run_probe(binary: Path, cases: list[dict]) -> list[dict]:
     return {r["id"]: r for r in json.loads(p.stdout)}
 
 
+def val_eq_loose(a, b) -> bool:
+    """Like val_eq but tolerates numeric expectations quoted as strings
+    (small-model JSON habit: expect "6" for engine 6)."""
+    if isinstance(a, str) and isinstance(b, (int, float)) and not isinstance(b, bool):
+        try:
+            return val_eq(float(a), b)
+        except ValueError:
+            return False
+    if isinstance(b, str) and isinstance(a, (int, float)) and not isinstance(a, bool):
+        try:
+            return val_eq(a, float(b))
+        except ValueError:
+            return False
+    return val_eq(a, b)
+
+
 def case_valid(case: dict, clean_res: dict) -> tuple[bool, str]:
     """Model's expectation vs engine reality (final read)."""
     expect = case.get("expect", None)
     reads = clean_res.get("reads", [])
-    if expect == "ERROR":
+    if isinstance(expect, str) and expect.strip().lower() == "error":
         ok = (not clean_res.get("ok", False))
         return ok, "expect ERROR" if ok else "engine succeeded, model expected error"
     if not reads:
         return False, "no read ops in script"
     if not clean_res.get("ok", False) and expect is not None:
         return False, "engine errored on case"
-    return val_eq(reads[-1], expect), "match" if val_eq(reads[-1], expect) else \
-        f"engine={json.dumps(reads[-1])[:120]} model_expect={json.dumps(expect)[:120]}"
+    return (val_eq_loose(reads[-1], expect),
+            "match" if val_eq_loose(reads[-1], expect) else
+            f"engine={json.dumps(reads[-1])[:120]} model_expect={json.dumps(expect)[:120]}")
 
 
 # ---------------------------------------------------------------- mutants

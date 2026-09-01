@@ -78,3 +78,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g6-1` [REJECTED-invalid-expectation] 'a * 2' — triage=False (short reason) — engine=10 model_expect="10" 
 - `g6-2` [REJECTED-invalid-expectation] 'min([arr, arr2, arr3])' — triage=False (short reason) — engine=5.0 model_expect="5" 
 - `g6-3` [REJECTED-invalid-expectation] 'a + 1' — triage=False (The test case exhibits a logic bug where dependent cells are incorrectly marked ) — engine=3 model_expect="Ready" 
+
+## Generation 7 — blind — 2026-08-31 20:21:11
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g7-0` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g7-1` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g7-2` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g7-3` [REJECTED-filter] '' — triage=False (short reason) —  
