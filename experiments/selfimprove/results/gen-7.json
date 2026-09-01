@@ -1,0 +1,76 @@
+{
+ "gen": 7,
+ "mode": "blind",
+ "candidates": [
+  {
+   "id": "g7-0",
+   "summary": "Integer overflow wraps 2147483648 to -2147483648 in signed 32-bit arithmetic",
+   "expr": "x + y",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine=null model_expect=-2147483648",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g7-1",
+   "summary": "Division by zero is undefined and the engine returns ERROR",
+   "expr": "a / b",
+   "triage_keep": false,
+   "triage_reason": "Division by zero and expected error handling",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine succeeded, model expected error",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g7-2",
+   "summary": "Null value used in arithmetic operation triggers ENGINE ERROR as per specification",
+   "expr": "a + b",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine succeeded, model expected error",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g7-3",
+   "summary": "clamp() returns 50 because a=150 is above the upper bound hi=50, so it is clamped to the upper bound",
+   "expr": "clamp(a, lo, hi)",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine=null model_expect=50",
+   "verdict": "REJECTED-invalid-expectation"
+  }
+ ],
+ "kept": [],
+ "live_mutants": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M06-min-array-max",
+  "M07-stale-ready",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
+ ],
+ "killed_before": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ],
+ "mutator_raw_len": 1603,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
+}

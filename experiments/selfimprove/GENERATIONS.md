@@ -64,3 +64,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 
 ## Generation 6 — targeted — 2026-08-31 20:13:09
 - live mutants: 8 | corpus kills before: 3 | after: 3
+
+## Generation 7 — blind — 2026-08-31 20:16:31
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g7-0` [REJECTED-invalid-expectation] 'x + y' — triage=False (short reason) — engine=null model_expect=-2147483648 
+- `g7-1` [REJECTED-invalid-expectation] 'a / b' — triage=False (Division by zero and expected error handling) — engine succeeded, model expected error 
+- `g7-2` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine succeeded, model expected error 
+- `g7-3` [REJECTED-invalid-expectation] 'clamp(a, lo, hi)' — triage=False (short reason) — engine=null model_expect=50 
