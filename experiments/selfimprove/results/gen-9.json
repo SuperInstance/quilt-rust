@@ -4,63 +4,54 @@
  "candidates": [
   {
    "id": "g9-0",
-   "summary": "Resolves dotted cell ID 'compass.heading' to its stored value 15",
-   "expr": "",
-   "triage_keep": true,
-   "triage_reason": "triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed out) — default pass",
-   "engine_result": 15,
-   "valid": true,
-   "validity_note": "match",
-   "new_kills": [],
-   "verdict": "REJECTED-no-new-kills"
-  },
-  {
-   "id": "g9-1",
-   "summary": "Formula starting with '=' is treated as a literal value, not an expression",
-   "expr": "",
+   "summary": "Division by zero produces NULL result rather than an error",
+   "expr": "a / b",
    "triage_keep": false,
    "triage_reason": "short reason",
    "filter_flagged": true,
    "engine_result": null,
    "valid": false,
-   "validity_note": "engine errored on case",
+   "validity_note": "engine=null model_expect=\"NULL\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g9-1",
+   "summary": "Tests logical AND/OR with mixed boolean conditions",
+   "expr": "(a > 2 && b < 4) || c",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine=null model_expect=\"true\"",
    "verdict": "REJECTED-invalid-expectation"
   },
   {
    "id": "g9-2",
-   "summary": "Division by zero triggers an ERROR in the engine",
+   "summary": "Clamp function should return the value clamped between lo (5) and hi (10); 8 is within range so returns 8",
    "expr": "",
    "triage_keep": false,
-   "triage_reason": "short reason",
-   "filter_flagged": true,
-   "engine_result": null,
-   "valid": true,
-   "validity_note": "expect ERROR",
-   "new_kills": [
-    "M01-rewrite-order",
-    "M04-set-cache-clear",
-    "M05-cache-value-update",
-    "M07-stale-ready",
-    "M12-call-cache-serve-error"
-   ],
-   "verdict": "KEPT"
-  },
-  {
-   "id": "g9-3",
-   "summary": "clamp function returns the value within [lo, hi] range, so 150 is clamped to 50",
-   "expr": "",
-   "triage_keep": false,
-   "triage_reason": "short reason",
+   "triage_reason": "The test checks clamp logic with specific bounds; however, the scenario describes a trivial duplicate due to identical input and expected outcome.",
    "filter_flagged": true,
    "engine_result": null,
    "valid": false,
    "validity_note": "engine errored on case",
    "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g9-3",
+   "summary": "Tests string concatenation with cell references using cell-id syntax",
+   "expr": "cells[\"start\"] + \"-\" + cells[\"mid\"] + \"-\" + cells[\"end\"]",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": "--",
+   "valid": false,
+   "validity_note": "engine=\"--\" model_expect=\"begin-middle-finish\"",
+   "verdict": "REJECTED-invalid-expectation"
   }
  ],
- "kept": [
-  "g9-2"
- ],
+ "kept": [],
  "live_mutants": [
   "M01-rewrite-order",
   "M04-set-cache-clear",
@@ -76,15 +67,10 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutator_raw_len": 1361,
+ "mutator_raw_len": 2113,
  "killed_after": [
   "M06-min-array-max",
   "M10-string-literal-rewrite",
-  "M11-snapshot-pre-eval-cut",
-  "M01-rewrite-order",
-  "M04-set-cache-clear",
-  "M05-cache-value-update",
-  "M07-stale-ready",
-  "M12-call-cache-serve-error"
+  "M11-snapshot-pre-eval-cut"
  ]
 }

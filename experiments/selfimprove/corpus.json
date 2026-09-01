@@ -694,36 +694,5 @@
   ],
   "expect": 102,
   "origin": "seed"
- },
- {
-  "id": "g9-2",
-  "cells": [
-   {
-    "id": "a",
-    "kind": "value",
-    "value": 10
-   },
-   {
-    "id": "b",
-    "kind": "value",
-    "value": 0
-   }
-  ],
-  "script": [
-   {
-    "op": "get",
-    "id": "a / b"
-   }
-  ],
-  "expect": "ERROR",
-  "why": "Division by zero triggers an ERROR in the engine",
-  "origin": "gen-9",
-  "kills": [
-   "M01-rewrite-order",
-   "M04-set-cache-clear",
-   "M05-cache-value-update",
-   "M07-stale-ready",
-   "M12-call-cache-serve-error"
-  ]
  }
 ]
