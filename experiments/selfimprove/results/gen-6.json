@@ -1,7 +1,56 @@
 {
  "gen": 6,
  "mode": "targeted",
- "candidates": [],
+ "candidates": [
+  {
+   "id": "g6-0",
+   "summary": "Shortest ID 'a' gets rewritten before longer ID 'compass.heading', corrupting the dependency chain and causing the formula to return NULL or",
+   "expr": "compass * 3",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 6,
+   "valid": false,
+   "validity_note": "engine=6 model_expect=\"6\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g6-1",
+   "summary": "cache_result() does not update cell.value, so chained formulas read stale/null values after the initial set",
+   "expr": "a * 2",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 10,
+   "valid": false,
+   "validity_note": "engine=10 model_expect=\"10\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g6-2",
+   "summary": "The min() array helper incorrectly computes MAX instead of MIN, returning 12 instead of 5",
+   "expr": "min([arr, arr2, arr3])",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 5.0,
+   "valid": false,
+   "validity_note": "engine=5.0 model_expect=\"5\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g6-3",
+   "summary": "After setting 'a', dependent cells 'b' and 'c' should be marked Stale (needing recomputation), but the bug causes them to be marked Ready",
+   "expr": "a + 1",
+   "triage_keep": false,
+   "triage_reason": "The test case exhibits a logic bug where dependent cells are incorrectly marked Ready despite dependencies.",
+   "filter_flagged": true,
+   "engine_result": 3,
+   "valid": false,
+   "validity_note": "engine=3 model_expect=\"Ready\"",
+   "verdict": "REJECTED-invalid-expectation"
+  }
+ ],
  "kept": [],
  "live_mutants": [
   "M01-rewrite-order",
@@ -18,7 +67,7 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutator_raw_len": 0,
+ "mutator_raw_len": 2152,
  "killed_after": [
   "M06-min-array-max",
   "M10-string-literal-rewrite",
