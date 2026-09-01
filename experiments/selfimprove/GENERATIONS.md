@@ -44,3 +44,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 
 ## Generation 4 — targeted — 2026-08-31 20:02:16
 - live mutants: 8 | corpus kills before: 3 | after: 3
+
+## Generation 5 — blind — 2026-08-31 20:07:00
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g5-0` [REJECTED-no-new-kills] '((a + b) * c) / 2' — triage=False (short reason) — match 
+- `g5-1` [REJECTED-no-new-kills] '' — triage=False (short reason) — match 
+- `g5-2` [REJECTED-invalid-expectation] 'a / b' — triage=False (Dividing 5 by 0 is undefined; the engine defines this as an ERROR.) — engine succeeded, model expected error 
+- `g5-3` [REJECTED-invalid-expectation] 'a * b + c' — triage=False (multiplying 3000000 * 4000 causes integer overflow) — engine succeeded, model expected error 

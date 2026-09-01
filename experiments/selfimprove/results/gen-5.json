@@ -1,0 +1,78 @@
+{
+ "gen": 5,
+ "mode": "blind",
+ "candidates": [
+  {
+   "id": "g5-0",
+   "summary": "Initial f = ((10+5)*2)/2 = 30/2 = 15. After a=7, f = ((7+5)*2)/2 = 24/2 = 12.",
+   "expr": "((a + b) * c) / 2",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 12,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g5-1",
+   "summary": "The call operation reads the STORED value of each value cell; x=3, y=4. The last operation is call y, returning the cached stored value 4.",
+   "expr": "",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 4,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g5-2",
+   "summary": "Dividing 5 by 0 is undefined; the engine defines this as an ERROR.",
+   "expr": "a / b",
+   "triage_keep": false,
+   "triage_reason": "Dividing 5 by 0 is undefined; the engine defines this as an ERROR.",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine succeeded, model expected error",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g5-3",
+   "summary": "Multiplying 3000000 * 4000 = 12,000,000,000 exceeds the 32-bit signed integer range, causing integer overflow which the engine defines as an",
+   "expr": "a * b + c",
+   "triage_keep": false,
+   "triage_reason": "multiplying 3000000 * 4000 causes integer overflow",
+   "filter_flagged": true,
+   "engine_result": 12000000001,
+   "valid": false,
+   "validity_note": "engine succeeded, model expected error",
+   "verdict": "REJECTED-invalid-expectation"
+  }
+ ],
+ "kept": [],
+ "live_mutants": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M06-min-array-max",
+  "M07-stale-ready",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
+ ],
+ "killed_before": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ],
+ "mutator_raw_len": 1951,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
+}

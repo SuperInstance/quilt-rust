@@ -343,7 +343,7 @@ def one_generation(g: int, corpus: list[dict], mutants: list[dict], setup: dict)
     sys_p, user = mutate_prompt(mode, corpus, live)
     raw = ""
     try:
-        for npred in (3600, 7000):
+        for npred in (12000,):
             raw = chat(MUTATOR, sys_p, user, json_mode=False,
                        temp=0.7 if mode == "blind" else 0.4, num_predict=npred)
             if extract_json(raw) is not None:
