@@ -1,0 +1,113 @@
+Below are four test cases that target the four identified bugs (M01, M05, M07, and M06). Each test case demonstrates the expected behavior and highlights how the bug manifests.
+
+---
+
+### **Test 1: M01 – Rewrite Order (Dotted ID References)**
+**Goal:** Verify that after a `set` operation, a formula referencing a short ID should read the updated value. The M01 bug causes short IDs to be rewritten inside longer IDs, corrupting dotted references.
+
+```python
+# Initial state
+a = 10
+b = 20
+c = 30
+
+# Formula: "a.b + c" (expects 10 + 30 = 40)
+f = "a.b + c"
+
+# Operation 1: get f → 40
+print(f.get())  # Expected: 40
+
+# Operation 2: set a = 100
+a = 100
+
+# Operation 3: get f → expects 130 (100 + 30)
+print(f.get())  # Expected: 130
+```
+
+**Expected behavior:** 130  
+**If M01 bug is present:** The rewrite process places `a` inside `b` (e.g., `a` becomes `b.a`). When `a.b` is evaluated, it tries to access `b.b`, which does not exist. The second `get` raises an error (e.g., `KeyError` or `IndexError`), demonstrating the corruption of dotted references.
+
+---
+
+### **Test 2: M05 – Cache Value Not Updated**
+**Goal:** Verify that after a `set`, the cached value for a formula is updated. The M05 bug leaves the cache stale, causing incorrect results on subsequent reads.
+
+```python
+# Initial state
+a = 10
+f = "a + 10"
+
+# Operation 1: get f → 20
+print(f.get())  # Expected: 20
+
+# Operation 2: set a = 100
+a = 100
+
+# Operation 3: get f → expects 110
+print(f.get())  # Expected: 110
+```
+
+**Expected behavior:** 110  
+**If M05 bug is present:** The cache for `f` still holds the old value (`20`). The second `get` returns `20` (stale) instead of `110`.
+
+---
+
+### **Test 3: M07 – Stale Dependency Marking**
+**Goal:** Verify that after a `set`, a formula’s dependency is marked as stale. The M07 bug prevents the dependency from being marked stale, causing incorrect reads.
+
+```python
+# Initial state
+a = 5
+f = "a + 10"
+
+# Operation 1: get f → 15
+print(f.get())  # Expected: 15
+
+# Operation 2: set a = 100
+a = 100
+
+# Operation 3: get f → expects 110
+print(f.get())  # Expected: 110
+```
+
+**Expected behavior:** 110  
+**If M07 bug is present:** After `a = 100`, the dependency `f` is marked **Ready** (no recomputation). The second `get` returns the stale value `15` instead of `110`.
+
+---
+
+### **Test 4: M06 – Wrong Sorting in min/max**
+**Goal:** Verify that `min([a, b, c])` returns the smallest value. The M06 bug can cause `min` to return the largest value due to incorrect sorting.
+
+```python
+# Initial state
+a = 5
+b = 10
+c = 3
+
+# Formula: min([a, b, c]) (expects 3)
+f = "min([a, b, c])"
+
+# Operation 1: get f → 3
+print(f.get())  # Expected: 3
+
+# Operation 2: set a = 100
+a = 100
+
+# Operation 3: get f → expects 10 (min of 100, 10, 3)
+print(f.get())  # Expected: 10
+```
+
+**Expected behavior:** 10  
+**If M06 bug is present:** The sorting logic may be reversed, causing `min` to return `100` (the maximum) instead of `10`.
+
+---
+
+### **Summary**
+| Test | Bug | Expected | If Bug Present |
+|------|-----|----------|----------------|
+| 1 | M01 | 130 | Error (corrupted dotted reference) |
+| 2 | M05 | 110 | Returns 20 (stale cache) |
+| 3 | M07 | 110 | Returns 15 (stale dependency) |
+| 4 | M06 | 10 | Returns 100 (wrong min) |
+
+These tests collectively validate that each bug is correctly identified and can be detected by observing incorrect or erroneous behavior.

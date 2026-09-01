@@ -186,3 +186,6 @@ in place as the honest record.
 - `g11-2` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 
 - `g11-3` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine=null model_expect="NULL" 
 - **KEPT: g11-1**
+
+## Generation 12 — targeted — 2026-08-31 21:13:31
+- live mutants: 8 | corpus kills before: 8 | after: 8
