@@ -51,3 +51,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g5-1` [REJECTED-no-new-kills] '' — triage=False (short reason) — match 
 - `g5-2` [REJECTED-invalid-expectation] 'a / b' — triage=False (Dividing 5 by 0 is undefined; the engine defines this as an ERROR.) — engine succeeded, model expected error 
 - `g5-3` [REJECTED-invalid-expectation] 'a * b + c' — triage=False (multiplying 3000000 * 4000 causes integer overflow) — engine succeeded, model expected error 
+
+## Generation 5 — blind — 2026-08-31 20:07:01
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g5-0` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g5-1` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g5-2` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g5-3` [REJECTED-filter] '' — triage=False (short reason) —  
