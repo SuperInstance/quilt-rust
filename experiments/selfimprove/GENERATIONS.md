@@ -132,3 +132,11 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g8-1` [REJECTED-no-new-kills] '' — triage=False (short reason) — match 
 - `g8-2` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 
 - `g8-3` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine=null model_expect="stale" 
+
+## Generation 9 — blind — 2026-08-31 20:58:12
+- live mutants: 8 | corpus kills before: 3 | after: 8
+- `g9-0` [REJECTED-no-new-kills] '' — triage=True (triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed) — match 
+- `g9-1` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 
+- `g9-2` [KEPT] '' — triage=False (short reason) — expect ERROR kills=M01-rewrite-order,M04-set-cache-clear,M05-cache-value-update,M07-stale-ready,M12-call-cache-serve-error
+- `g9-3` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 
+- **KEPT: g9-2**

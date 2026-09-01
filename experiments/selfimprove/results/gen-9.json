@@ -4,54 +4,63 @@
  "candidates": [
   {
    "id": "g9-0",
-   "summary": "Division by zero produces NULL per engine semantics",
-   "expr": "a / 0",
+   "summary": "Resolves dotted cell ID 'compass.heading' to its stored value 15",
+   "expr": "",
    "triage_keep": true,
    "triage_reason": "triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed out) — default pass",
-   "engine_result": null,
-   "valid": false,
-   "validity_note": "engine=null model_expect=\"NULL\"",
-   "verdict": "REJECTED-invalid-expectation"
+   "engine_result": 15,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
   },
   {
    "id": "g9-1",
-   "summary": "Float multiplication yields 11.0",
-   "expr": "a * b",
-   "triage_keep": true,
-   "triage_reason": "triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed out) — default pass",
-   "engine_result": 11.0,
-   "valid": true,
-   "validity_note": "match",
-   "new_kills": [],
-   "verdict": "REJECTED-no-new-kills"
-  },
-  {
-   "id": "g9-2",
-   "summary": "String concatenation with cell references works as expected",
-   "expr": "a + \" \" + b",
-   "triage_keep": false,
-   "triage_reason": "short reason",
-   "filter_flagged": true,
-   "engine_result": "Hello World",
-   "valid": true,
-   "validity_note": "match",
-   "new_kills": [],
-   "verdict": "REJECTED-no-new-kills"
-  },
-  {
-   "id": "g9-3",
-   "summary": "Formula with null operand yields NULL per engine semantics",
-   "expr": "a + b",
+   "summary": "Formula starting with '=' is treated as a literal value, not an expression",
+   "expr": "",
    "triage_keep": false,
    "triage_reason": "short reason",
    "filter_flagged": true,
    "engine_result": null,
    "valid": false,
-   "validity_note": "engine=null model_expect=\"NULL\"",
+   "validity_note": "engine errored on case",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g9-2",
+   "summary": "Division by zero triggers an ERROR in the engine",
+   "expr": "",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": true,
+   "validity_note": "expect ERROR",
+   "new_kills": [
+    "M01-rewrite-order",
+    "M04-set-cache-clear",
+    "M05-cache-value-update",
+    "M07-stale-ready",
+    "M12-call-cache-serve-error"
+   ],
+   "verdict": "KEPT"
+  },
+  {
+   "id": "g9-3",
+   "summary": "clamp function returns the value within [lo, hi] range, so 150 is clamped to 50",
+   "expr": "",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine errored on case",
    "verdict": "REJECTED-invalid-expectation"
   }
  ],
- "kept": [],
+ "kept": [
+  "g9-2"
+ ],
  "live_mutants": [
   "M01-rewrite-order",
   "M04-set-cache-clear",
@@ -67,10 +76,15 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutator_raw_len": 1491,
+ "mutator_raw_len": 1361,
  "killed_after": [
   "M06-min-array-max",
   "M10-string-literal-rewrite",
-  "M11-snapshot-pre-eval-cut"
+  "M11-snapshot-pre-eval-cut",
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M07-stale-ready",
+  "M12-call-cache-serve-error"
  ]
 }

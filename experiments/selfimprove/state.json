@@ -1,9 +1,14 @@
 {
- "gen": 8,
- "kept_total": 0,
+ "gen": 9,
+ "kept_total": 1,
  "killed": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
   "M06-min-array-max",
+  "M07-stale-ready",
   "M10-string-literal-rewrite",
-  "M11-snapshot-pre-eval-cut"
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
  ]
 }
