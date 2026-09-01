@@ -4,35 +4,52 @@
  "candidates": [
   {
    "id": "g3-0",
-   "summary": "Multiplication of 2147483647 * 2 exceeds the 32-bit signed integer range, triggering integer overflow which the engine defines as an error c",
-   "expr": "a * b",
+   "summary": "Integer addition of 3000000000 + 1 exceeds 32-bit signed int range, causing overflow error",
+   "expr": "a + b",
    "triage_keep": false,
-   "triage_reason": "Multiplication of 2147483647 * 2 exceeds the 32-bit signed integer range, triggering integer overflow which the engine defines as an error case.",
-   "verdict": "REJECTED-filter"
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 3000000001,
+   "valid": false,
+   "validity_note": "engine succeeded, model expected error",
+   "verdict": "REJECTED-invalid-expectation"
   },
   {
    "id": "g3-1",
-   "summary": "Null arithmetic (adding or multiplying null with numbers) is undefined behavior and should trigger an error per the engine's correctness def",
-   "expr": "a + b",
+   "summary": "Division by zero is undefined and the engine defines this as an error",
+   "expr": "a / b",
    "triage_keep": false,
-   "triage_reason": "Null arithmetic is undefined behavior and should trigger an error.",
-   "verdict": "REJECTED-filter"
+   "triage_reason": "Division by zero detected and the engine treats it as an error",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine succeeded, model expected error",
+   "verdict": "REJECTED-invalid-expectation"
   },
   {
    "id": "g3-2",
-   "summary": "The engine resolves dotted cell references (cells[\"a\"] and cells[\"b\"]) to their values and performs addition.",
-   "expr": "cells[\"a\"] + cells[\"b\"]",
+   "summary": "Adding a null value to a string triggers null arithmetic which the engine defines as an error",
+   "expr": "a + b",
    "triage_keep": false,
    "triage_reason": "short reason",
-   "verdict": "REJECTED-filter"
+   "filter_flagged": true,
+   "engine_result": "test",
+   "valid": false,
+   "validity_note": "engine succeeded, model expected error",
+   "verdict": "REJECTED-invalid-expectation"
   },
   {
    "id": "g3-3",
-   "summary": "The min/max helper functions operate on array literals, returning the minimum and maximum values respectively (min([3,1]) = 1, max([3,1]) = ",
-   "expr": "min([a, b])",
+   "summary": "The min function over [15, 3, 20] should return 3, demonstrating array function handling",
+   "expr": "min([x, y, z])",
    "triage_keep": false,
-   "triage_reason": "The test case verifies correct usage of min/max on array literals with a script chain; it checks expected outcomes against actual engine behavior.",
-   "verdict": "REJECTED-filter"
+   "triage_reason": "The test checks array min logic but the engine rejected it due to value mismatch; it's not a trivial duplicate.",
+   "filter_flagged": true,
+   "engine_result": 3.0,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
   }
  ],
  "kept": [],
@@ -51,7 +68,7 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutator_raw_len": 1999,
+ "mutator_raw_len": 1689,
  "killed_after": [
   "M06-min-array-max",
   "M10-string-literal-rewrite",

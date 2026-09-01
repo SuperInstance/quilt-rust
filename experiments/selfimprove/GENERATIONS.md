@@ -31,3 +31,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g3-1` [REJECTED-filter] 'a + b' — triage=False (Null arithmetic is undefined behavior and should trigger an error.) —  
 - `g3-2` [REJECTED-filter] 'cells["a"] + cells["b"]' — triage=False (short reason) —  
 - `g3-3` [REJECTED-filter] 'min([a, b])' — triage=False (The test case verifies correct usage of min/max on array literals with a script ) —  
+
+## Generation 3 — blind — 2026-08-31 19:55:35
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g3-0` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine succeeded, model expected error 
+- `g3-1` [REJECTED-invalid-expectation] 'a / b' — triage=False (Division by zero detected and the engine treats it as an error) — engine succeeded, model expected error 
+- `g3-2` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine succeeded, model expected error 
+- `g3-3` [REJECTED-no-new-kills] 'min([x, y, z])' — triage=False (The test checks array min logic but the engine rejected it due to value mismatch) — match 
