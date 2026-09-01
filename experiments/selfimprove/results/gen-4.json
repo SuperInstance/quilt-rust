@@ -18,7 +18,7 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutator_raw_len": 1642,
+ "mutator_raw_len": 0,
  "killed_after": [
   "M06-min-array-max",
   "M10-string-literal-rewrite",

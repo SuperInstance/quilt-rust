@@ -41,3 +41,6 @@ blind (no bug info) / targeted (mutant diffs shown).
 
 ## Generation 4 — targeted — 2026-08-31 19:59:50
 - live mutants: 8 | corpus kills before: 3 | after: 3
+
+## Generation 4 — targeted — 2026-08-31 20:02:16
+- live mutants: 8 | corpus kills before: 3 | after: 3
