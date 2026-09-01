@@ -126,12 +126,13 @@ def val_eq(a, b) -> bool:
     return a == b
 
 
-def reads_diverge(clean_reads, mut_result) -> bool:
-    """A mutant diverges on a case if reads differ, it errored, or it panicked."""
-    if mut_result.get("error") or not mut_result.get("ok", False):
-        # error/panic counts as divergence only if the clean run was fine
+def reads_diverge(clean_res, mut_res) -> bool:
+    """A mutant diverges on a case if reads/statuses differ, it errored, or panicked."""
+    if mut_res.get("error") or not mut_res.get("ok", False):
+        return True  # error/panic on a case the clean engine handled
+    if not val_eq(clean_res.get("reads", []), mut_res.get("reads", [])):
         return True
-    return not val_eq(clean_reads, mut_result.get("reads", []))
+    return not val_eq(clean_res.get("statuses", []), mut_res.get("statuses", []))
 
 
 # ---------------------------------------------------------------- probe
@@ -191,6 +192,7 @@ def setup_mutants(force: bool = False) -> dict:
         if p.returncode != 0:
             raise RuntimeError("clean probe build failed:\n" + p.stderr[-800:])
         clean_bin.write_bytes((PROBE_DIR / "target/release/selfimprove-probe").read_bytes())
+        clean_bin.chmod(0o755)
     setup.setdefault("_clean", {"built": True})
 
     for m in mutants:
@@ -209,17 +211,23 @@ def setup_mutants(force: bool = False) -> dict:
                 else:
                     (BIN / mid).write_bytes(
                         (PROBE_DIR / "target/release/selfimprove-probe").read_bytes())
+                    (BIN / mid).chmod(0o755)
                     entry.update(probe=True)
-                    # battery verdict on the real test suite
-                    t = run(["cargo", "test", "-p", "quilt-core", "--quiet"],
-                            cwd=WORKTREE, timeout=900)
-                    failed = t.returncode != 0
-                    tail = (t.stdout + t.stderr).strip().splitlines()
-                    entry.update(battery_killed=failed,
-                                 battery_reason=("tests-fail: " + "; ".join(
-                                     [l for l in tail if "FAILED" in l or "panicked" in l][:3])
-                                     or "output-differs") if failed else "tests-pass",
-                                 battery_tail=tail[-6:])
+                    prev = setup.get(mid, {})
+                    if os.environ.get("SKIP_BATTERY") and "battery_killed" in prev:
+                        entry.update(battery_killed=prev["battery_killed"],
+                                     battery_reason=prev.get("battery_reason", "reused"))
+                    else:
+                        # battery verdict on the real test suite
+                        t = run(["cargo", "test", "-p", "quilt-core", "--quiet"],
+                                cwd=WORKTREE, timeout=900)
+                        failed = t.returncode != 0
+                        tail = (t.stdout + t.stderr).strip().splitlines()
+                        entry.update(battery_killed=failed,
+                                     battery_reason=("tests-fail: " + "; ".join(
+                                         [l for l in tail if "FAILED" in l or "panicked" in l][:3])
+                                         or "output-differs") if failed else "tests-pass",
+                                     battery_tail=tail[-6:])
             finally:
                 revert_mutant(m)
             entry["done"] = True
@@ -259,7 +267,7 @@ def corpus_kills(corpus: list[dict], mutants: list[dict], setup: dict):
         res = run_probe(BIN / mid, corpus)
         killed_by = [c["id"] for c in corpus
                      if c["id"] in valid_ids
-                     and reads_diverge(clean[c["id"]]["reads"], res[c["id"]])]
+                     and reads_diverge(clean[c["id"]], res[c["id"]])]
         if killed_by:
             kills[mid] = killed_by
     return kills, valid_ids, clean
@@ -275,7 +283,7 @@ SPEC = """You write test cases for a reactive spreadsheet engine (Quilt). Cells 
 
 A test case is JSON:
 {"id": "...", "cells": [{"id":"a","kind":"value","value":2},{"id":"f","kind":"formula","expr":"a * 3","deps":["a"]}], "script": [{"op":"get","id":"f"},{"op":"set","id":"a","value":5},{"op":"call","id":"f"}], "expect": <final read value, or "ERROR">, "why": "one line"}
-ops: get (evaluate+read), set (write a value, triggers recompute of dependents), call (like get but uses the caller-context cache). The LAST get/call in the script is compared to "expect"."""
+ops: get (evaluate+read), set (write a value, triggers recompute of dependents), call (like get but uses the caller-context cache), peek (reads the STORED value and status without evaluating — statuses are "ready", "stale", "error"). The LAST get/call/peek in the script is compared to "expect"."""
 
 
 def mutate_prompt(mode: str, corpus: list[dict], live: list[dict]) -> tuple[str, str]:
@@ -397,7 +405,7 @@ def one_generation(g: int, corpus: list[dict], mutants: list[dict], setup: dict)
                 mres = run_probe(BIN / mid, [cand])[cand["id"]]
             except Exception:  # noqa: BLE001
                 continue
-            if reads_diverge(cres["reads"], mres):
+            if reads_diverge(cres, mres):
                 new_kills.append(mid)
         crec["new_kills"] = new_kills
         if new_kills:

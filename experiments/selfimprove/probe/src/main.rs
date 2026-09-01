@@ -72,6 +72,7 @@ struct Op {
 struct StepOut {
     op: String,
     value: Value,
+    status: Value,
     error: Option<String>,
 }
 
@@ -81,6 +82,7 @@ struct ResultOut {
     ok: bool,
     steps: Vec<StepOut>,
     reads: Vec<Value>,
+    statuses: Vec<Value>,
     error: Option<String>,
 }
 
@@ -110,6 +112,7 @@ fn run_scenario(sc: &Scenario) -> ResultOut {
                 ok: false,
                 steps: vec![],
                 reads: vec![],
+                statuses: vec![],
                 error: Some(format!("setup: {e}")),
             };
         }
@@ -118,19 +121,29 @@ fn run_scenario(sc: &Scenario) -> ResultOut {
     let ctx = CallerContext::default();
     let mut steps = Vec::new();
     let mut reads = Vec::new();
+    let mut statuses = Vec::new();
     let mut all_ok = true;
 
     for op in &sc.script {
         let mut value = Value::Null;
+        let mut status = Value::Null;
         let mut err: Option<String> = None;
         match op.op.as_str() {
             "get" => match engine.get(&op.id, ctx.clone()) {
-                Ok(cv) => value = cv.data,
+                Ok(cv) => { value = cv.data; status = serde_json::to_value(cv.status).unwrap_or(Value::Null); }
                 Err(e) => err = Some(e.to_string()),
             },
             "call" => match engine.call(&op.id, None, ctx.clone()) {
-                Ok(cv) => value = cv.data,
+                Ok(cv) => { value = cv.data; status = serde_json::to_value(cv.status).unwrap_or(Value::Null); }
                 Err(e) => err = Some(e.to_string()),
+            },
+            // peek: stored state WITHOUT evaluation — exposes the staleness window.
+            "peek" => match engine.get_cell(&op.id) {
+                Some(c) => {
+                    value = c.value.data.clone();
+                    status = serde_json::to_value(c.value.status).unwrap_or(Value::Null);
+                }
+                None => err = Some("cell-not-found".into()),
             },
             "set" => match engine.set(&op.id, op.value.clone(), ctx.clone()) {
                 Ok(()) => value = op.value.clone(),
@@ -141,12 +154,14 @@ fn run_scenario(sc: &Scenario) -> ResultOut {
         if err.is_some() {
             all_ok = false;
         }
-        if op.op == "get" || op.op == "call" {
+        if op.op == "get" || op.op == "call" || op.op == "peek" {
             reads.push(value.clone());
+            statuses.push(status.clone());
         }
         steps.push(StepOut {
             op: op.op.clone(),
             value,
+            status,
             error: err,
         });
     }
@@ -156,6 +171,7 @@ fn run_scenario(sc: &Scenario) -> ResultOut {
         ok: all_ok,
         steps,
         reads,
+        statuses,
         error: None,
     }
 }
@@ -189,6 +205,7 @@ fn main() {
                     ok: false,
                     steps: vec![],
                     reads: vec![],
+                    statuses: vec![],
                     error: Some(format!("panic: {msg}")),
                 }
             }

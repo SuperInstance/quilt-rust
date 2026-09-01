@@ -1,0 +1,113 @@
+{
+ "_clean": {
+  "built": true
+ },
+ "M01-rewrite-order": {
+  "done": true,
+  "id": "M01-rewrite-order",
+  "desc": "Known-id rewriting sorts SHORTEST-first instead of longest-first: a short id like `compass` gets rewritten inside a longer dotted id like `compass.heading`, corrupting references to dotted cell ids.",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 5.3
+ },
+ "M02-eq-strip": {
+  "done": true,
+  "id": "M02-eq-strip",
+  "desc": "Formulas no longer strip a leading '=' prefix, so '= a + 1' fails to compile instead of evaluating.",
+  "probe": true,
+  "battery_killed": true,
+  "battery_reason": "tests-fail: quilt_compat_conformance --- FAILED; thread 'quilt_compat_conformance' (134194) panicked at packages/core/../../compat/conformance_test.rs:65:21:; test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+  "seconds": 4.9
+ },
+ "M03-propagate-cache-clear": {
+  "done": true,
+  "id": "M03-propagate-cache-clear",
+  "desc": "When a dependency changes, dependents' per-context caches are NOT cleared: a call() after a set() can serve the stale cached value.",
+  "probe": true,
+  "battery_killed": true,
+  "battery_reason": "tests-fail: quilt_compat_conformance --- FAILED; thread 'quilt_compat_conformance' (135356) panicked at packages/core/../../compat/conformance_test.rs:65:21:; test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+  "seconds": 4.9
+ },
+ "M04-set-cache-clear": {
+  "done": true,
+  "id": "M04-set-cache-clear",
+  "desc": "set() no longer clears the target cell's own context cache.",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 4.7
+ },
+ "M05-cache-value-update": {
+  "done": true,
+  "id": "M05-cache-value-update",
+  "desc": "cache_result() no longer writes the result into cell.value, so chained formulas reading a snapshot of a computed formula see a stale/null value.",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 5.0
+ },
+ "M06-min-array-max": {
+  "done": true,
+  "id": "M06-min-array-max",
+  "desc": "The min() array helper computes a MAX instead of a min.",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 4.8
+ },
+ "M07-stale-ready": {
+  "done": true,
+  "id": "M07-stale-ready",
+  "desc": "propagate() marks dependents Ready instead of Stale after a dependency change (lying status bit).",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 5.4
+ },
+ "M08-clamp-swapped": {
+  "done": true,
+  "id": "M08-clamp-swapped",
+  "desc": "clamp() integer helper swaps its bounds: clamp(x, lo, hi) becomes clamp(x, hi, lo), panicking or mis-clamping whenever lo != hi.",
+  "probe": true,
+  "battery_killed": true,
+  "battery_reason": "tests-fail: cells::formula::tests::helper_clamp --- FAILED; thread 'cells::formula::tests::helper_clamp' (141061) panicked at packages/core/src/cells/formula.rs:377:7:; test result: FAILED. 70 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+  "seconds": 4.4
+ },
+ "M09-dep-graph-cut": {
+  "done": true,
+  "id": "M09-dep-graph-cut",
+  "desc": "register() no longer wires dependents: set() propagates to nothing, formulas never marked stale.",
+  "probe": true,
+  "battery_killed": true,
+  "battery_reason": "tests-fail: setting_value_marks_formula_stale --- FAILED; thread 'setting_value_marks_formula_stale' (142268) panicked at packages/core/tests/engine_integration.rs:233:5:; test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s",
+  "seconds": 5.1
+ },
+ "M10-string-literal-rewrite": {
+  "done": true,
+  "id": "M10-string-literal-rewrite",
+  "desc": "Known-id rewriting no longer skips string literals: a cell id mentioned inside a string literal gets rewritten into cells[...] access, corrupting string contents.",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 5.0
+ },
+ "M11-snapshot-pre-eval-cut": {
+  "done": true,
+  "id": "M11-snapshot-pre-eval-cut",
+  "desc": "build_formula_snapshot() no longer pre-evaluates formula/program dependencies: chained formulas read a null/stale dep value.",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 4.7
+ },
+ "M12-call-cache-serve-error": {
+  "done": true,
+  "id": "M12-call-cache-serve-error",
+  "desc": "call() serves cached results even when they carry an error, instead of re-evaluating.",
+  "probe": true,
+  "battery_killed": false,
+  "battery_reason": "tests-pass",
+  "seconds": 5.8
+ }
+}

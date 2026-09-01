@@ -1,116 +1,698 @@
 [
-  {"id": "seed-arith-precedence", "cells": [
-      {"id": "a", "kind": "value", "value": 3},
-      {"id": "b", "kind": "value", "value": 4},
-      {"id": "f", "kind": "formula", "expr": "a + b * 2", "deps": ["a", "b"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-modulo", "cells": [
-      {"id": "a", "kind": "value", "value": 17},
-      {"id": "b", "kind": "value", "value": 5},
-      {"id": "f", "kind": "formula", "expr": "a % b", "deps": ["a", "b"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-comparison-logic", "cells": [
-      {"id": "a", "kind": "value", "value": 10},
-      {"id": "b", "kind": "value", "value": 3},
-      {"id": "c", "kind": "value", "value": 3},
-      {"id": "f", "kind": "formula", "expr": "a > b && !(b == c) || a == 10", "deps": ["a", "b", "c"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-float-precision", "cells": [
-      {"id": "a", "kind": "value", "value": 0.1},
-      {"id": "b", "kind": "value", "value": 0.2},
-      {"id": "f", "kind": "formula", "expr": "a + b", "deps": ["a", "b"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-ternary", "cells": [
-      {"id": "a", "kind": "value", "value": 7},
-      {"id": "f", "kind": "formula", "expr": "if a > 5 { \"big\" } else { \"small\" }", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-string-literal-with-id", "cells": [
-      {"id": "a", "kind": "value", "value": 1},
-      {"id": "f", "kind": "formula", "expr": "\"a and b\"", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-dotted-ids", "cells": [
-      {"id": "compass", "kind": "value", "value": 1},
-      {"id": "compass.heading", "kind": "value", "value": 42},
-      {"id": "f", "kind": "formula", "expr": "compass.heading + 1", "deps": ["compass", "compass.heading"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-eq-prefix", "cells": [
-      {"id": "a", "kind": "value", "value": 6},
-      {"id": "f", "kind": "formula", "expr": "= a + 1", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-helper-min-array", "cells": [
-      {"id": "a", "kind": "value", "value": 3},
-      {"id": "b", "kind": "value", "value": 1},
-      {"id": "c", "kind": "value", "value": 2},
-      {"id": "f", "kind": "formula", "expr": "min([a, b, c])", "deps": ["a", "b", "c"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-helper-max-array", "cells": [
-      {"id": "a", "kind": "value", "value": 3},
-      {"id": "b", "kind": "value", "value": 1},
-      {"id": "c", "kind": "value", "value": 2},
-      {"id": "f", "kind": "formula", "expr": "max([a, b, c])", "deps": ["a", "b", "c"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-helper-clamp", "cells": [
-      {"id": "a", "kind": "value", "value": 42},
-      {"id": "f", "kind": "formula", "expr": "clamp(a, 0, 10)", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-helper-abs", "cells": [
-      {"id": "a", "kind": "value", "value": -5},
-      {"id": "f", "kind": "formula", "expr": "abs(a)", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-reactivity-basic", "cells": [
-      {"id": "a", "kind": "value", "value": 2},
-      {"id": "f", "kind": "formula", "expr": "a * 3", "deps": ["a"]}],
-    "script": [
-      {"op": "get", "id": "f"},
-      {"op": "set", "id": "a", "value": 5},
-      {"op": "get", "id": "f"}]},
-  {"id": "seed-call-cache-staleness", "cells": [
-      {"id": "a", "kind": "value", "value": 2},
-      {"id": "f", "kind": "formula", "expr": "a * 3", "deps": ["a"]}],
-    "script": [
-      {"op": "call", "id": "f"},
-      {"op": "set", "id": "a", "value": 5},
-      {"op": "call", "id": "f"}]},
-  {"id": "seed-chain-two-deep", "cells": [
-      {"id": "a", "kind": "value", "value": 2},
-      {"id": "f1", "kind": "formula", "expr": "a * 2", "deps": ["a"]},
-      {"id": "f2", "kind": "formula", "expr": "f1 + 1", "deps": ["f1"]}],
-    "script": [{"op": "get", "id": "f2"}]},
-  {"id": "seed-chain-reactivity", "cells": [
-      {"id": "a", "kind": "value", "value": 2},
-      {"id": "f1", "kind": "formula", "expr": "a * 2", "deps": ["a"]},
-      {"id": "f2", "kind": "formula", "expr": "f1 + 1", "deps": ["f1"]}],
-    "script": [
-      {"op": "get", "id": "f2"},
-      {"op": "set", "id": "a", "value": 10},
-      {"op": "get", "id": "f2"}]},
-  {"id": "seed-null-math", "cells": [
-      {"id": "a", "kind": "value", "value": null},
-      {"id": "f", "kind": "formula", "expr": "a + 1", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-cells-bracket-access", "cells": [
-      {"id": "a", "kind": "value", "value": 8},
-      {"id": "f", "kind": "formula", "expr": "cells[\"a\"] * 2", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-negative-division", "cells": [
-      {"id": "a", "kind": "value", "value": -7},
-      {"id": "b", "kind": "value", "value": 2},
-      {"id": "f", "kind": "formula", "expr": "a / b", "deps": ["a", "b"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-string-concat", "cells": [
-      {"id": "a", "kind": "value", "value": "hello"},
-      {"id": "b", "kind": "value", "value": "quilt"},
-      {"id": "f", "kind": "formula", "expr": "a + \" \" + b", "deps": ["a", "b"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-unicode-value", "cells": [
-      {"id": "a", "kind": "value", "value": "温度"},
-      {"id": "f", "kind": "formula", "expr": "a + \"!\"", "deps": ["a"]}],
-    "script": [{"op": "get", "id": "f"}]},
-  {"id": "seed-set-then-read-value-cell", "cells": [
-      {"id": "a", "kind": "value", "value": 1},
-      {"id": "f", "kind": "formula", "expr": "a + 100", "deps": ["a"]}],
-    "script": [
-      {"op": "set", "id": "a", "value": 2},
-      {"op": "get", "id": "a"},
-      {"op": "get", "id": "f"}]}
+ {
+  "id": "seed-arith-precedence",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 3
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 4
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a + b * 2",
+    "deps": [
+     "a",
+     "b"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 11,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-modulo",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 17
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 5
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a % b",
+    "deps": [
+     "a",
+     "b"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 2,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-comparison-logic",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 10
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 3
+   },
+   {
+    "id": "c",
+    "kind": "value",
+    "value": 3
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a > b && !(b == c) || a == 10",
+    "deps": [
+     "a",
+     "b",
+     "c"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": true,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-float-precision",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 0.1
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 0.2
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a + b",
+    "deps": [
+     "a",
+     "b"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 0.30000000000000004,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-ternary",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 7
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "if a > 5 { \"big\" } else { \"small\" }",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": "big",
+  "origin": "seed"
+ },
+ {
+  "id": "seed-string-literal-with-id",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 1
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "\"a and b\"",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": "a and b",
+  "origin": "seed"
+ },
+ {
+  "id": "seed-dotted-ids",
+  "cells": [
+   {
+    "id": "compass",
+    "kind": "value",
+    "value": 1
+   },
+   {
+    "id": "compass.heading",
+    "kind": "value",
+    "value": 42
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "compass.heading + 1",
+    "deps": [
+     "compass",
+     "compass.heading"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 43,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-eq-prefix",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 6
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "= a + 1",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 7,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-helper-min-array",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 3
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 1
+   },
+   {
+    "id": "c",
+    "kind": "value",
+    "value": 2
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "min([a, b, c])",
+    "deps": [
+     "a",
+     "b",
+     "c"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 1.0,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-helper-max-array",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 3
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 1
+   },
+   {
+    "id": "c",
+    "kind": "value",
+    "value": 2
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "max([a, b, c])",
+    "deps": [
+     "a",
+     "b",
+     "c"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 3.0,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-helper-clamp",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 42
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "clamp(a, 0, 10)",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 10,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-helper-abs",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": -5
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "abs(a)",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 5,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-reactivity-basic",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 2
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a * 3",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   },
+   {
+    "op": "set",
+    "id": "a",
+    "value": 5
+   },
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 15,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-call-cache-staleness",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 2
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a * 3",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "call",
+    "id": "f"
+   },
+   {
+    "op": "set",
+    "id": "a",
+    "value": 5
+   },
+   {
+    "op": "call",
+    "id": "f"
+   }
+  ],
+  "expect": 15,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-chain-two-deep",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 2
+   },
+   {
+    "id": "f1",
+    "kind": "formula",
+    "expr": "a * 2",
+    "deps": [
+     "a"
+    ]
+   },
+   {
+    "id": "f2",
+    "kind": "formula",
+    "expr": "f1 + 1",
+    "deps": [
+     "f1"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f2"
+   }
+  ],
+  "expect": 5,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-chain-reactivity",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 2
+   },
+   {
+    "id": "f1",
+    "kind": "formula",
+    "expr": "a * 2",
+    "deps": [
+     "a"
+    ]
+   },
+   {
+    "id": "f2",
+    "kind": "formula",
+    "expr": "f1 + 1",
+    "deps": [
+     "f1"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f2"
+   },
+   {
+    "op": "set",
+    "id": "a",
+    "value": 10
+   },
+   {
+    "op": "get",
+    "id": "f2"
+   }
+  ],
+  "expect": 21,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-null-math",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": null
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a + 1",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": null,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-cells-bracket-access",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 8
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "cells[\"a\"] * 2",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 16,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-negative-division",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": -7
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 2
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a / b",
+    "deps": [
+     "a",
+     "b"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": -3,
+  "origin": "seed"
+ },
+ {
+  "id": "seed-string-concat",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": "hello"
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": "quilt"
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a + \" \" + b",
+    "deps": [
+     "a",
+     "b"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": "hello quilt",
+  "origin": "seed"
+ },
+ {
+  "id": "seed-unicode-value",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": "温度"
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a + \"!\"",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": "温度!",
+  "origin": "seed"
+ },
+ {
+  "id": "seed-set-then-read-value-cell",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": 1
+   },
+   {
+    "id": "f",
+    "kind": "formula",
+    "expr": "a + 100",
+    "deps": [
+     "a"
+    ]
+   }
+  ],
+  "script": [
+   {
+    "op": "set",
+    "id": "a",
+    "value": 2
+   },
+   {
+    "op": "get",
+    "id": "a"
+   },
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": 102,
+  "origin": "seed"
+ }
 ]
