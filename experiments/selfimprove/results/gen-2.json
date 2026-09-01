@@ -1,0 +1,60 @@
+{
+ "gen": 2,
+ "mode": "targeted",
+ "candidates": [
+  {
+   "id": "g2-0",
+   "summary": "With shortest-first rewriting, 'compass' gets rewritten first, then 'compass.heading' is rewritten incorrectly, causing target to read the o",
+   "expr": "compass.heading",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "verdict": "REJECTED-filter"
+  },
+  {
+   "id": "g2-1",
+   "summary": "The cache_result() does not update cell.value after a set, so the formula 'f' reads the stale value 5 instead of the new value 10, returning",
+   "expr": "a + 100",
+   "triage_keep": false,
+   "triage_reason": "The cache_result() does not update cell.value after a set, causing the formula to use stale data.",
+   "verdict": "REJECTED-filter"
+  },
+  {
+   "id": "g2-2",
+   "summary": "The min() array helper incorrectly computes the maximum (10) instead of the minimum (3) due to using max() instead of min().",
+   "expr": "min([arr])",
+   "triage_keep": false,
+   "triage_reason": "The min() array helper incorrectly computes the maximum instead of the minimum due to using max().",
+   "verdict": "REJECTED-filter"
+  },
+  {
+   "id": "g2-3",
+   "summary": "After setting 'a' to 20, the dependent 'c' should be marked Stale (out of date). The bug causes 'c' to be marked Ready, so it returns the st",
+   "expr": "a + 100",
+   "triage_keep": false,
+   "triage_reason": "The test case incorrectly expects a value of 120 despite the dependency logic causing an incorrect calculation.",
+   "verdict": "REJECTED-filter"
+  }
+ ],
+ "kept": [],
+ "live_mutants": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M06-min-array-max",
+  "M07-stale-ready",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
+ ],
+ "killed_before": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ],
+ "mutator_raw_len": 2074,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
+}

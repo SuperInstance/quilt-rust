@@ -298,7 +298,7 @@ Existing corpus (do not duplicate, go BEYOND them — explore edge cases: operat
 Propose {CANDIDATES_PER_GEN} NEW test cases as a JSON array. Output ONLY the array."""
     else:
         tgt = "\n\n".join(
-            f"- {m['id']}: {m['desc']}\n  change: {m['find']!r} -> {m['replace']!r}"
+            f"- {m['id']}: {m['description']}\n  change: {m['find']!r} -> {m['replace']!r}"
             for m in live[:6])
         user = f"""{SPEC}
 
@@ -341,9 +341,13 @@ def one_generation(g: int, corpus: list[dict], mutants: list[dict], setup: dict)
 
     # 1. MUTATE
     sys_p, user = mutate_prompt(mode, corpus, live)
+    raw = ""
     try:
-        raw = chat(MUTATOR, sys_p, user, json_mode=False,
-                   temp=0.7 if mode == "blind" else 0.4, num_predict=3200)
+        for npred in (3600, 7000):
+            raw = chat(MUTATOR, sys_p, user, json_mode=False,
+                       temp=0.7 if mode == "blind" else 0.4, num_predict=npred)
+            if extract_json(raw) is not None:
+                break
     except Exception as e:  # noqa: BLE001
         rec["mutate_error"] = str(e)[:300]
         return rec, corpus, kills_before

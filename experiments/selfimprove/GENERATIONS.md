@@ -15,3 +15,12 @@ blind (no bug info) / targeted (mutant diffs shown).
 
 ## Generation 1 — blind — 2026-08-31 19:50:41
 - live mutants: 8 | corpus kills before: 3 | after: 3
+
+## Generation 2 — CRASHED: 'desc'
+
+## Generation 2 — targeted — 2026-08-31 19:52:56
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g2-0` [REJECTED-filter] 'compass.heading' — triage=False (short reason) —  
+- `g2-1` [REJECTED-filter] 'a + 100' — triage=False (The cache_result() does not update cell.value after a set, causing the formula t) —  
+- `g2-2` [REJECTED-filter] 'min([arr])' — triage=False (The min() array helper incorrectly computes the maximum instead of the minimum d) —  
+- `g2-3` [REJECTED-filter] 'a + 100' — triage=False (The test case incorrectly expects a value of 120 despite the dependency logic ca) —  
