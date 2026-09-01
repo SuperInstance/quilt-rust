@@ -694,5 +694,41 @@
   ],
   "expect": 102,
   "origin": "seed"
+ },
+ {
+  "id": "g11-1",
+  "cells": [
+   {
+    "id": "a",
+    "kind": "value",
+    "value": null
+   },
+   {
+    "id": "b",
+    "kind": "value",
+    "value": 5
+   },
+   {
+    "id": "c",
+    "kind": "value",
+    "value": 2
+   }
+  ],
+  "script": [
+   {
+    "op": "get",
+    "id": "f"
+   }
+  ],
+  "expect": "ERROR",
+  "why": "division by zero (null/b) causes runtime error",
+  "origin": "gen-11",
+  "kills": [
+   "M01-rewrite-order",
+   "M04-set-cache-clear",
+   "M05-cache-value-update",
+   "M07-stale-ready",
+   "M12-call-cache-serve-error"
+  ]
  }
 ]

@@ -168,3 +168,21 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g10-1` [REJECTED-no-new-kills] 'a + 100' — triage=False (The test case describes a scenario that is syntactically valid but does not full) — match 
 - `g10-2` [REJECTED-no-new-kills] 'x + 10' — triage=False (The test case describes a scenario that already exists; it is not a duplicate or) — match 
 - `g10-3` [REJECTED-no-new-kills] 'min([arr, arr2])' — triage=False (The min() array helper should return the minimum (7). If it incorrectly computes) — match 
+
+## ⚠️ Incident log (21:10)
+
+Generations 1-10 ran with up to SIX concurrent harness processes (process-kill
+requests did not propagate to the python children). Effects: serial Ollama queue
+contention (7-15 min generations), duplicate GENERATIONS.md entries, and
+gen-9.json written by both old and new code. Corpus itself stayed consistent
+(all runs kept 0 cases; kills=3 baseline intact — verified via `status`).
+Fix: pkill + flock single-instance guard. Duplicate entries above are left
+in place as the honest record.
+
+## Generation 11 — blind — 2026-08-31 21:08:55
+- live mutants: 8 | corpus kills before: 3 | after: 8
+- `g11-0` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 
+- `g11-1` [KEPT] '' — triage=False (short reason) — expect ERROR kills=M01-rewrite-order,M04-set-cache-clear,M05-cache-value-update,M07-stale-ready,M12-call-cache-serve-error
+- `g11-2` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine errored on case 
+- `g11-3` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine=null model_expect="NULL" 
+- **KEPT: g11-1**

@@ -497,6 +497,14 @@ def observe_seeds(corpus: list[dict]) -> list[dict]:
 
 
 def main():
+    # single-instance guard — six concurrent loops fought over one ollama once.
+    import fcntl
+    lock = open(ROOT / ".harness.lock", "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print("another harness instance holds the lock", file=sys.stderr)
+        sys.exit(3)
     cmd = sys.argv[1] if len(sys.argv) > 1 else "run"
     if cmd == "setup":
         setup_mutants(force="--force" in sys.argv)
