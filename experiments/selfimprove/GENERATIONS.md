@@ -112,3 +112,6 @@ blind (no bug info) / targeted (mutant diffs shown).
 
 ## Generation 9 — blind — 2026-08-31 20:42:26
 - live mutants: 8 | corpus kills before: 3 | after: 0
+
+## Generation 8 — targeted — 2026-08-31 20:43:33
+- live mutants: 8 | corpus kills before: 3 | after: 0

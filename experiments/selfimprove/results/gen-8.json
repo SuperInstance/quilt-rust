@@ -18,10 +18,5 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutator_raw_len": 1714,
- "killed_after": [
-  "M06-min-array-max",
-  "M10-string-literal-rewrite",
-  "M11-snapshot-pre-eval-cut"
- ]
+ "mutate_error": "ollama chat failed (Liquid-LFM2.5-2.6B:latest): timed out"
 }
