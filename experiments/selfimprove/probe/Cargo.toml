@@ -1,0 +1,17 @@
+[package]
+name = "selfimprove-probe"
+version = "0.1.0"
+edition = "2021"
+description = "Self-improvement harness probe: runs scenario batches against the real QuiltEngine. Clean + mutant builds are swapped by harness.py."
+
+[dependencies]
+quilt-core = { path = "../../../packages/core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[profile.dev]
+opt-level = 1
+
+# Standalone crate (not a workspace member): the parent quilt workspace
+# must stay untouched so baseline battery runs see the real tree.
+[workspace]
