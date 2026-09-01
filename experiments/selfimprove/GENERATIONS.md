@@ -118,3 +118,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 
 ## Generation 10 — targeted — 2026-08-31 20:57:42
 - live mutants: 8 | corpus kills before: 3 | after: 0
+
+## Generation 9 — blind — 2026-08-31 20:58:09
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g9-0` [REJECTED-invalid-expectation] 'a / 0' — triage=True (triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed) — engine=null model_expect="NULL" 
+- `g9-1` [REJECTED-no-new-kills] 'a * b' — triage=True (triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed) — match 
+- `g9-2` [REJECTED-no-new-kills] 'a + " " + b' — triage=False (short reason) — match 
+- `g9-3` [REJECTED-invalid-expectation] 'a + b' — triage=False (short reason) — engine=null model_expect="NULL" 

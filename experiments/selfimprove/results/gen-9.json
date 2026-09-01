@@ -1,7 +1,56 @@
 {
  "gen": 9,
  "mode": "blind",
- "candidates": [],
+ "candidates": [
+  {
+   "id": "g9-0",
+   "summary": "Division by zero produces NULL per engine semantics",
+   "expr": "a / 0",
+   "triage_keep": true,
+   "triage_reason": "triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed out) — default pass",
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine=null model_expect=\"NULL\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g9-1",
+   "summary": "Float multiplication yields 11.0",
+   "expr": "a * b",
+   "triage_keep": true,
+   "triage_reason": "triager-failed (ollama chat failed (LiquidAI/lfm2.5-1.2b-instruct:latest): timed out) — default pass",
+   "engine_result": 11.0,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g9-2",
+   "summary": "String concatenation with cell references works as expected",
+   "expr": "a + \" \" + b",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": "Hello World",
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g9-3",
+   "summary": "Formula with null operand yields NULL per engine semantics",
+   "expr": "a + b",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine=null model_expect=\"NULL\"",
+   "verdict": "REJECTED-invalid-expectation"
+  }
+ ],
  "kept": [],
  "live_mutants": [
   "M01-rewrite-order",
@@ -18,5 +67,10 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutate_error": "ollama chat failed (Liquid-LFM2.5-2.6B:latest): timed out"
+ "mutator_raw_len": 1491,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
 }
