@@ -1,88 +1,88 @@
 {
-  "mutants": [
-    {
-      "id": "M01-rewrite-order",
-      "file": "packages/core/src/cells/formula.rs",
-      "find": "sorted.sort_by_key(|s| std::cmp::Reverse(s.len()));",
-      "replace": "sorted.sort_by_key(|s| s.len());",
-      "description": "Known-id rewriting sorts SHORTEST-first instead of longest-first: a short id like `compass` gets rewritten inside a longer dotted id like `compass.heading`, corrupting references to dotted cell ids."
-    },
-    {
-      "id": "M02-eq-strip",
-      "file": "packages/core/src/cells/formula.rs",
-      "find": "        let body = source\n            .strip_prefix('=')\n            .unwrap_or(source)\n            .trim()\n            .to_string();",
-      "replace": "        let body = source.trim().to_string();",
-      "description": "Formulas no longer strip a leading '=' prefix, so '= a + 1' fails to compile instead of evaluating."
-    },
-    {
-      "id": "M03-propagate-cache-clear",
-      "file": "packages/core/src/engine.rs",
-      "find": "                    dep.context_cache.clear();",
-      "replace": "                    // mutant: cache not cleared",
-      "description": "When a dependency changes, dependents' per-context caches are NOT cleared: a call() after a set() can serve the stale cached value."
-    },
-    {
-      "id": "M04-set-cache-clear",
-      "file": "packages/core/src/engine.rs",
-      "find": "            cell.context_cache.clear();",
-      "replace": "            // mutant: cache not cleared on set",
-      "description": "set() no longer clears the target cell's own context cache."
-    },
-    {
-      "id": "M05-cache-value-update",
-      "file": "packages/core/src/engine.rs",
-      "find": "            cell.value = value.clone();",
-      "replace": "            // mutant: cell.value not updated",
-      "description": "cache_result() no longer writes the result into cell.value, so other cells reading a snapshot of a computed formula see a stale/null value (chained formulas break)."
-    },
-    {
-      "id": "M06-min-array-max",
-      "file": "packages/core/src/cells/formula.rs",
-      "find": "        best = Some(best.map_or(n, |b| b.min(n)));",
-      "replace": "        best = Some(best.map_or(n, |b| b.max(n)));",
-      "description": "The min() array helper computes a MAX instead of a min."
-    },
-    {
-      "id": "M07-stale-ready",
-      "file": "packages/core/src/engine.rs",
-      "find": "                        status: CellStatus::Stale,",
-      "replace": "                        status: CellStatus::Ready,",
-      "description": "propagate() marks dependents Ready instead of Stale after a dependency change (lying status bit)."
-    },
-    {
-      "id": "M08-clamp-swapped",
-      "file": "packages/core/src/cells/formula.rs",
-      "find": "fn clamp_i64_fn(n: i64, lo: i64, hi: i64) -> i64 {\n    n.clamp(lo, hi)\n}",
-      "replace": "fn clamp_i64_fn(n: i64, lo: i64, hi: i64) -> i64 {\n    n.clamp(hi, lo)\n}",
-      "description": "clamp() integer helper swaps its bounds: clamp(x, lo, hi) becomes clamp(x, hi, lo), panicking or mis-clamping whenever lo != hi."
-    },
-    {
-      "id": "M09-dep-graph-cut",
-      "file": "packages/core/src/engine.rs",
-      "find": "            to_cell.dependents.insert(from.to_string());",
-      "replace": "            // mutant: dependent not registered",
-      "description": "register() no longer wires dependents: set() propagates to nothing, formulas never marked stale."
-    },
-    {
-      "id": "M10-string-literal-rewrite",
-      "file": "packages/core/src/cells/formula.rs",
-      "find": "        if chars[i] == '\"' || chars[i] == '\\'' {",
-      "replace": "        if false && (chars[i] == '\"' || chars[i] == '\\\'') {",
-      "description": "Known-id rewriting no longer skips string literals: a cell id mentioned inside a string literal gets rewritten into cells[...] access, corrupting string contents."
-    },
-    {
-      "id": "M11-snapshot-pre-eval-cut",
-      "file": "packages/core/src/engine.rs",
-      "find": "                let _ = self.get(dep_id, caller_ctx.clone());",
-      "replace": "                // mutant: dep not pre-evaluated",
-      "description": "build_formula_snapshot() no longer pre-evaluates formula/program dependencies: chained formulas read a null/stale dep value."
-    },
-    {
-      "id": "M12-call-cache-serve-error",
-      "file": "packages/core/src/engine.rs",
-      "find": "                    if cached.status == CellStatus::Ready && cached.error.is_none() {",
-      "replace": "                    if cached.status == CellStatus::Ready {",
-      "description": "call() serves cached results even when they carry an error, instead of re-evaluating."
-    }
-  ]
+ "mutants": [
+  {
+   "id": "M01-rewrite-order",
+   "file": "packages/core/src/cells/formula.rs",
+   "find": "sorted.sort_by_key(|s| std::cmp::Reverse(s.len()));",
+   "replace": "sorted.sort_by_key(|s| s.len());",
+   "description": "Known-id rewriting sorts SHORTEST-first instead of longest-first: a short id like `compass` gets rewritten inside a longer dotted id like `compass.heading`, corrupting references to dotted cell ids."
+  },
+  {
+   "id": "M02-eq-strip",
+   "file": "packages/core/src/cells/formula.rs",
+   "find": "        let body = source\n            .strip_prefix('=')\n            .unwrap_or(source)\n            .trim()\n            .to_string();",
+   "replace": "        let body = source.trim().to_string();",
+   "description": "Formulas no longer strip a leading '=' prefix, so '= a + 1' fails to compile instead of evaluating."
+  },
+  {
+   "id": "M03-propagate-cache-clear",
+   "file": "packages/core/src/engine.rs",
+   "find": "                    dep.context_cache.clear();",
+   "replace": "                    // mutant: cache not cleared",
+   "description": "When a dependency changes, dependents' per-context caches are NOT cleared: a call() after a set() can serve the stale cached value."
+  },
+  {
+   "id": "M04-set-cache-clear",
+   "file": "packages/core/src/engine.rs",
+   "find": "            cell.context_cache.clear();",
+   "replace": "            // mutant: cache not cleared on set",
+   "description": "set() no longer clears the target cell's own context cache."
+  },
+  {
+   "id": "M05-cache-value-update",
+   "file": "packages/core/src/engine.rs",
+   "find": "            cell.value = value.clone();",
+   "replace": "            // mutant: cell.value not updated",
+   "description": "cache_result() no longer writes the result into cell.value, so chained formulas reading a snapshot of a computed formula see a stale/null value."
+  },
+  {
+   "id": "M06-min-array-max",
+   "file": "packages/core/src/cells/formula.rs",
+   "find": "        best = Some(best.map_or(n, |b| b.min(n)));",
+   "replace": "        best = Some(best.map_or(n, |b| b.max(n)));",
+   "description": "The min() array helper computes a MAX instead of a min."
+  },
+  {
+   "id": "M07-stale-ready",
+   "file": "packages/core/src/engine.rs",
+   "find": "                        status: CellStatus::Stale,",
+   "replace": "                        status: CellStatus::Ready,",
+   "description": "propagate() marks dependents Ready instead of Stale after a dependency change (lying status bit)."
+  },
+  {
+   "id": "M08-clamp-swapped",
+   "file": "packages/core/src/cells/formula.rs",
+   "find": "fn clamp_i64_fn(n: i64, lo: i64, hi: i64) -> i64 {\n    n.clamp(lo, hi)\n}",
+   "replace": "fn clamp_i64_fn(n: i64, lo: i64, hi: i64) -> i64 {\n    n.clamp(hi, lo)\n}",
+   "description": "clamp() integer helper swaps its bounds: clamp(x, lo, hi) becomes clamp(x, hi, lo), panicking or mis-clamping whenever lo != hi."
+  },
+  {
+   "id": "M09-dep-graph-cut",
+   "file": "packages/core/src/engine.rs",
+   "find": "            to_cell.dependents.insert(from.to_string());",
+   "replace": "            // mutant: dependent not registered",
+   "description": "register() no longer wires dependents: set() propagates to nothing, formulas never marked stale."
+  },
+  {
+   "id": "M10-string-literal-rewrite",
+   "file": "packages/core/src/cells/formula.rs",
+   "find": "        if chars[i] == '\"' || chars[i] == '\\'' {",
+   "replace": "        if false && (chars[i] == '\"' || chars[i] == '\\'' ) {",
+   "description": "Known-id rewriting no longer skips string literals: a cell id mentioned inside a string literal gets rewritten into cells[...] access, corrupting string contents."
+  },
+  {
+   "id": "M11-snapshot-pre-eval-cut",
+   "file": "packages/core/src/engine.rs",
+   "find": "                let _ = self.get(dep_id, caller_ctx.clone());",
+   "replace": "                // mutant: dep not pre-evaluated",
+   "description": "build_formula_snapshot() no longer pre-evaluates formula/program dependencies: chained formulas read a null/stale dep value."
+  },
+  {
+   "id": "M12-call-cache-serve-error",
+   "file": "packages/core/src/engine.rs",
+   "find": "                    if cached.status == CellStatus::Ready && cached.error.is_none() {",
+   "replace": "                    if cached.status == CellStatus::Ready {",
+   "description": "call() serves cached results even when they carry an error, instead of re-evaluating."
+  }
+ ]
 }

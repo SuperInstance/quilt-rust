@@ -70,13 +70,14 @@ def jdump(path: Path, obj) -> None:
 
 
 def chat(model: str, system: str, user: str, json_mode: bool, temp: float,
-         max_retries: int = 2) -> str:
+         max_retries: int = 2, num_predict: int = 1600) -> str:
     body = {
         "model": model,
         "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": user}],
         "stream": False,
-        "options": {"temperature": temp, "num_ctx": 8192, "num_predict": 1600},
+        "options": {"temperature": temp, "num_ctx": 8192,
+                    "num_predict": num_predict},
     }
     if json_mode:
         body["format"] = "json"
@@ -334,7 +335,7 @@ def one_generation(g: int, corpus: list[dict], mutants: list[dict], setup: dict)
     sys_p, user = mutate_prompt(mode, corpus, live)
     try:
         raw = chat(MUTATOR, sys_p, user, json_mode=False,
-                   temp=0.7 if mode == "blind" else 0.4)
+                   temp=0.7 if mode == "blind" else 0.4, num_predict=3200)
     except Exception as e:  # noqa: BLE001
         rec["mutate_error"] = str(e)[:300]
         return rec, corpus, kills_before
