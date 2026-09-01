@@ -1,0 +1,22 @@
+{
+ "gen": 10,
+ "mode": "targeted",
+ "candidates": [],
+ "kept": [],
+ "live_mutants": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M06-min-array-max",
+  "M07-stale-ready",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
+ ],
+ "killed_before": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ],
+ "mutate_error": "ollama chat failed (Liquid-LFM2.5-2.6B:latest): timed out"
+}
