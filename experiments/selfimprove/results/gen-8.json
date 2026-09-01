@@ -1,0 +1,76 @@
+{
+ "gen": 8,
+ "mode": "targeted",
+ "candidates": [
+  {
+   "id": "g8-0",
+   "summary": "With longest-first sorting, 'compass.heading' is rewritten before 'a', ensuring the formula uses the updated value of 10. With shortest-firs",
+   "expr": "",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine errored on case",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g8-1",
+   "summary": "After setting cell 'a' to 10, its context cache should be cleared. Without the fix, the cache would retain the old value, and reading 'a' wo",
+   "expr": "",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 10,
+   "valid": false,
+   "validity_note": "engine=10 model_expect=\"10\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g8-2",
+   "summary": "After setting cell 'a' to 2, the formula 'f' (a + 100) should be recomputed and its cell.value updated to 102. Without the fix, cell.value r",
+   "expr": "a + 100",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine=null model_expect=\"102\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g8-3",
+   "summary": "The known-id rewriting should skip string literals. 'a' and 'b' are string values, not cell references, so they should not be rewritten. The",
+   "expr": "",
+   "triage_keep": false,
+   "triage_reason": "The known-id rewriting should skip string literals. 'a' and 'b' are string values, not cell references, so they should not be rewritten. The formula 'a + \" \" + ",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine errored on case",
+   "verdict": "REJECTED-invalid-expectation"
+  }
+ ],
+ "kept": [],
+ "live_mutants": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M06-min-array-max",
+  "M07-stale-ready",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
+ ],
+ "killed_before": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ],
+ "mutator_raw_len": 2287,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
+}
