@@ -1,7 +1,60 @@
 {
  "gen": 10,
  "mode": "targeted",
- "candidates": [],
+ "candidates": [
+  {
+   "id": "g10-0",
+   "summary": "Shortest-first rewrite order corrupts dotted-id references; longest-first ensures 'compass.heading' is rewritten after 'compass' is already ",
+   "expr": "compass * 2",
+   "triage_keep": false,
+   "triage_reason": "shortest-first rewrite order corrupts dotted-id references; longest-first ensures 'compass.heading' is rewritten after 'compass' is already rewritten.",
+   "filter_flagged": true,
+   "engine_result": 20,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g10-1",
+   "summary": "After setting 'a' to 2, the formula 'b' should read the new value. If the cell's context cache is not cleared, the formula may return stale ",
+   "expr": "a + 100",
+   "triage_keep": false,
+   "triage_reason": "The test case describes a scenario that is syntactically valid but does not fully exercise real engine behavior due to potential caching issues.",
+   "filter_flagged": true,
+   "engine_result": 102,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g10-2",
+   "summary": "After setting 'x' to 20, the formula 'y' should reflect the new value. If cache_result() does not write the result into cell.value, the form",
+   "expr": "x + 10",
+   "triage_keep": false,
+   "triage_reason": "The test case describes a scenario that already exists; it is not a duplicate or trivial variant.",
+   "filter_flagged": true,
+   "engine_result": 30,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g10-3",
+   "summary": "The min() array helper should return the minimum (7). If it incorrectly computes the maximum, it would return 15, indicating the bug.",
+   "expr": "min([arr, arr2])",
+   "triage_keep": false,
+   "triage_reason": "The min() array helper should return the minimum (7). If it incorrectly computes the maximum, it would return 15, indicating the bug.",
+   "filter_flagged": true,
+   "engine_result": 7.0,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  }
+ ],
  "kept": [],
  "live_mutants": [
   "M01-rewrite-order",
@@ -18,5 +71,10 @@
   "M10-string-literal-rewrite",
   "M11-snapshot-pre-eval-cut"
  ],
- "mutate_error": "ollama chat failed (Liquid-LFM2.5-2.6B:latest): timed out"
+ "mutator_raw_len": 1917,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
 }

@@ -161,3 +161,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g11-1` [REJECTED-invalid-expectation] 'a + " " + b' — triage=False (short reason) — engine=null model_expect="hello more" 
 - `g11-2` [REJECTED-no-new-kills] 'a / b' — triage=False (the expected outcome should not be NULL due to reactive evaluation) — match 
 - `g11-3` [REJECTED-no-new-kills] 'a + 1' — triage=False (short reason) — match 
+
+## Generation 10 — targeted — 2026-08-31 21:03:29
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g10-0` [REJECTED-no-new-kills] 'compass * 2' — triage=False (shortest-first rewrite order corrupts dotted-id references; longest-first ensure) — match 
+- `g10-1` [REJECTED-no-new-kills] 'a + 100' — triage=False (The test case describes a scenario that is syntactically valid but does not full) — match 
+- `g10-2` [REJECTED-no-new-kills] 'x + 10' — triage=False (The test case describes a scenario that already exists; it is not a duplicate or) — match 
+- `g10-3` [REJECTED-no-new-kills] 'min([arr, arr2])' — triage=False (The min() array helper should return the minimum (7). If it incorrectly computes) — match 
