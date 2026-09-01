@@ -90,7 +90,7 @@ def chat(model: str, system: str, user: str, json_mode: bool, temp: float,
     last_err = None
     for _ in range(max_retries + 1):
         try:
-            with urllib.request.urlopen(req, timeout=300) as r:
+            with urllib.request.urlopen(req, timeout=900) as r:
                 return json.loads(r.read().decode())["message"]["content"]
         except Exception as e:  # noqa: BLE001 — log & retry
             last_err = e
@@ -370,6 +370,7 @@ def one_generation(g: int, corpus: list[dict], mutants: list[dict], setup: dict)
                 break
     except Exception as e:  # noqa: BLE001
         rec["mutate_error"] = str(e)[:300]
+        rec["killed_after"] = list(live_killed_before)
         return rec, corpus, kills_before
     cands = extract_json(raw)
     if not isinstance(cands, list):
