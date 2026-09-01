@@ -12,3 +12,6 @@ blind (no bug info) / targeted (mutant diffs shown).
 - 22 seed scenarios (arithmetic, precedence, floats, nulls, strings, dotted ids,
   '=' prefix, helpers, reactivity, call-cache staleness, chains).
 - Expectations observed from the clean engine — fixture truth by construction.
+
+## Generation 1 — blind — 2026-08-31 19:50:41
+- live mutants: 8 | corpus kills before: 3 | after: 3
