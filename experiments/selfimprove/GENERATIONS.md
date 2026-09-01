@@ -147,3 +147,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g9-1` [REJECTED-invalid-expectation] '(a > 2 && b < 4) || c' — triage=False (short reason) — engine=null model_expect="true" 
 - `g9-2` [REJECTED-invalid-expectation] '' — triage=False (The test checks clamp logic with specific bounds; however, the scenario describe) — engine errored on case 
 - `g9-3` [REJECTED-invalid-expectation] 'cells["start"] + "-" + cells["mid"] + "-" + cells["end"]' — triage=False (short reason) — engine="--" model_expect="begin-middle-finish" 
+
+## Generation 9 — blind — 2026-08-31 20:58:12
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g9-0` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g9-1` [REJECTED-filter] '' — triage=False (short reason) —  
+- `g9-2` [REJECTED-filter] '' — triage=False (Tests clamp helper function returning the lower bound when value exceeds the upp) —  
+- `g9-3` [REJECTED-filter] '' — triage=False (short reason) —  
