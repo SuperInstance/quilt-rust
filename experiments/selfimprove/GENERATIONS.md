@@ -106,3 +106,6 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g8-1` [REJECTED-invalid-expectation] '' — triage=False (short reason) — engine=10 model_expect="10" 
 - `g8-2` [REJECTED-invalid-expectation] 'a + 100' — triage=False (short reason) — engine=null model_expect="102" 
 - `g8-3` [REJECTED-invalid-expectation] '' — triage=False (The known-id rewriting should skip string literals. 'a' and 'b' are string value) — engine errored on case 
+
+## Generation 8 — targeted — 2026-08-31 20:25:11
+- live mutants: 8 | corpus kills before: 3 | after: 3
