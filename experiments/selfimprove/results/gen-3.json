@@ -1,0 +1,60 @@
+{
+ "gen": 3,
+ "mode": "blind",
+ "candidates": [
+  {
+   "id": "g3-0",
+   "summary": "Multiplication of 2147483647 * 2 exceeds the 32-bit signed integer range, triggering integer overflow which the engine defines as an error c",
+   "expr": "a * b",
+   "triage_keep": false,
+   "triage_reason": "Multiplication of 2147483647 * 2 exceeds the 32-bit signed integer range, triggering integer overflow which the engine defines as an error case.",
+   "verdict": "REJECTED-filter"
+  },
+  {
+   "id": "g3-1",
+   "summary": "Null arithmetic (adding or multiplying null with numbers) is undefined behavior and should trigger an error per the engine's correctness def",
+   "expr": "a + b",
+   "triage_keep": false,
+   "triage_reason": "Null arithmetic is undefined behavior and should trigger an error.",
+   "verdict": "REJECTED-filter"
+  },
+  {
+   "id": "g3-2",
+   "summary": "The engine resolves dotted cell references (cells[\"a\"] and cells[\"b\"]) to their values and performs addition.",
+   "expr": "cells[\"a\"] + cells[\"b\"]",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "verdict": "REJECTED-filter"
+  },
+  {
+   "id": "g3-3",
+   "summary": "The min/max helper functions operate on array literals, returning the minimum and maximum values respectively (min([3,1]) = 1, max([3,1]) = ",
+   "expr": "min([a, b])",
+   "triage_keep": false,
+   "triage_reason": "The test case verifies correct usage of min/max on array literals with a script chain; it checks expected outcomes against actual engine behavior.",
+   "verdict": "REJECTED-filter"
+  }
+ ],
+ "kept": [],
+ "live_mutants": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M06-min-array-max",
+  "M07-stale-ready",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
+ ],
+ "killed_before": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ],
+ "mutator_raw_len": 1999,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
+}

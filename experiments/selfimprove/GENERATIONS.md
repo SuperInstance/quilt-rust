@@ -24,3 +24,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g2-1` [REJECTED-filter] 'a + 100' — triage=False (The cache_result() does not update cell.value after a set, causing the formula t) —  
 - `g2-2` [REJECTED-filter] 'min([arr])' — triage=False (The min() array helper incorrectly computes the maximum instead of the minimum d) —  
 - `g2-3` [REJECTED-filter] 'a + 100' — triage=False (The test case incorrectly expects a value of 120 despite the dependency logic ca) —  
+
+## Generation 3 — blind — 2026-08-31 19:55:35
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g3-0` [REJECTED-filter] 'a * b' — triage=False (Multiplication of 2147483647 * 2 exceeds the 32-bit signed integer range, trigge) —  
+- `g3-1` [REJECTED-filter] 'a + b' — triage=False (Null arithmetic is undefined behavior and should trigger an error.) —  
+- `g3-2` [REJECTED-filter] 'cells["a"] + cells["b"]' — triage=False (short reason) —  
+- `g3-3` [REJECTED-filter] 'min([a, b])' — triage=False (The test case verifies correct usage of min/max on array literals with a script ) —  

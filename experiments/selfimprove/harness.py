@@ -378,9 +378,7 @@ def one_generation(g: int, corpus: list[dict], mutants: list[dict], setup: dict)
             crec["triage_keep"] = True
             crec["triage_reason"] = f"triager-failed ({str(e)[:80]}) — default pass"
         if not crec["triage_keep"]:
-            crec["verdict"] = "REJECTED-filter"
-            rec["candidates"].append(crec)
-            continue
+            crec["filter_flagged"] = True  # advisory: eval is cheap, gate is weak
         if signature(cand) in sigs:
             crec["verdict"] = "REJECTED-duplicate"
             rec["candidates"].append(crec)
