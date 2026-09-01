@@ -154,3 +154,10 @@ blind (no bug info) / targeted (mutant diffs shown).
 - `g9-1` [REJECTED-filter] '' — triage=False (short reason) —  
 - `g9-2` [REJECTED-filter] '' — triage=False (Tests clamp helper function returning the lower bound when value exceeds the upp) —  
 - `g9-3` [REJECTED-filter] '' — triage=False (short reason) —  
+
+## Generation 11 — blind — 2026-08-31 21:03:28
+- live mutants: 8 | corpus kills before: 3 | after: 3
+- `g11-0` [REJECTED-invalid-expectation] 'a * 2' — triage=False (short reason) — engine=75 model_expect=60 
+- `g11-1` [REJECTED-invalid-expectation] 'a + " " + b' — triage=False (short reason) — engine=null model_expect="hello more" 
+- `g11-2` [REJECTED-no-new-kills] 'a / b' — triage=False (the expected outcome should not be NULL due to reactive evaluation) — match 
+- `g11-3` [REJECTED-no-new-kills] 'a + 1' — triage=False (short reason) — match 

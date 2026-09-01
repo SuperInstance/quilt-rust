@@ -1,0 +1,78 @@
+{
+ "gen": 11,
+ "mode": "blind",
+ "candidates": [
+  {
+   "id": "g11-0",
+   "summary": "Cascading evaluation through three formula layers: 10*2=20, 20+5=25, 25*3=60",
+   "expr": "a * 2",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 75,
+   "valid": false,
+   "validity_note": "engine=75 model_expect=60",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g11-1",
+   "summary": "String concatenation: 'hello' + ' ' + '' = 'hello ', then 'hello ' + 'more' = 'hello more'",
+   "expr": "a + \" \" + b",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": false,
+   "validity_note": "engine=null model_expect=\"hello more\"",
+   "verdict": "REJECTED-invalid-expectation"
+  },
+  {
+   "id": "g11-2",
+   "summary": "Division by zero produces NULL; abs of NULL also NULL, so both gets return NULL",
+   "expr": "a / b",
+   "triage_keep": false,
+   "triage_reason": "the expected outcome should not be NULL due to reactive evaluation",
+   "filter_flagged": true,
+   "engine_result": null,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  },
+  {
+   "id": "g11-3",
+   "summary": "After set operation, the formula's cached value becomes stale; subsequent call reads the updated value (11)",
+   "expr": "a + 1",
+   "triage_keep": false,
+   "triage_reason": "short reason",
+   "filter_flagged": true,
+   "engine_result": 11,
+   "valid": true,
+   "validity_note": "match",
+   "new_kills": [],
+   "verdict": "REJECTED-no-new-kills"
+  }
+ ],
+ "kept": [],
+ "live_mutants": [
+  "M01-rewrite-order",
+  "M04-set-cache-clear",
+  "M05-cache-value-update",
+  "M06-min-array-max",
+  "M07-stale-ready",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut",
+  "M12-call-cache-serve-error"
+ ],
+ "killed_before": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ],
+ "mutator_raw_len": 2039,
+ "killed_after": [
+  "M06-min-array-max",
+  "M10-string-literal-rewrite",
+  "M11-snapshot-pre-eval-cut"
+ ]
+}
