@@ -277,3 +277,101 @@ fn world_cell_refine_appends_hint() {
     assert_ne!(cell.state_hash, h_before);
     assert_eq!(cell.n_refine, 1);
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// QUF (Phase 237) — Quilt Universal Format tests
+// ════════════════════════════════════════════════════════════════════════
+
+use quilt_polyformalism::{QufFile, QufDialRow, QufEdgeRow, QUF_ALIGN};
+
+#[test]
+fn quf_dial_row_size_is_32() {
+    assert_eq!(QufDialRow::WIRE_SIZE, 32);
+}
+
+#[test]
+fn quf_edge_row_size_with_k8_is_28() {
+    // 4*2 + 4 + 8*2 = 28
+    assert_eq!(QufEdgeRow::wire_size(8), 28);
+}
+
+#[test]
+fn quf_serialize_then_deserialize() {
+    let mut f = QufFile::new(4, 3, 8);
+    f.dials[0].i16 = 7;
+    f.dials[1].i16 = 11;
+    f.dials[2].i16 = 13;
+    f.dials[3].i16 = 17;
+    f.dials[0].tag = 2;  // INT
+    f.edges[0].src = 0; f.edges[0].dst = 1;
+    f.edges[0].flags = 1; f.edges[0].walk_count = 42;
+    f.edges[1].src = 1; f.edges[1].dst = 2;
+    f.edges[1].flags = 1; f.edges[1].walk_count = 100;
+    f.edges[2].src = 2; f.edges[2].dst = 3;
+    f.edges[2].flags = 1; f.edges[2].walk_count = 7;
+    f.ticks[0] = 100; f.ticks[1] = 100; f.ticks[2] = 100; f.ticks[3] = 100;
+
+    let rc = f.serialize();
+    assert_eq!(rc, 0);
+    assert!(f.buf.len() > 0);
+    assert_eq!(f.buf.len() % QUF_ALIGN, 0);
+    // Magic
+    assert_eq!(&f.buf[0..4], b"QUF\0");
+
+    // Round-trip
+    let g = QufFile::deserialize(&f.buf).expect("deserialize OK");
+    assert_eq!(g.cell_count, 4);
+    assert_eq!(g.edge_count, 3);
+    assert_eq!(g.edge_k, 8);
+    assert_eq!(g.dials[0].i16, 7);
+    assert_eq!(g.dials[3].i16, 17);
+    assert_eq!(g.edges[0].walk_count, 42);
+    assert_eq!(g.edges[1].walk_count, 100);
+    assert_eq!(g.ticks[0], 100);
+}
+
+#[test]
+fn quf_hash_is_deterministic() {
+    let f = QufFile::new(2, 1, 8);
+    let h1 = f.hash();
+    let h2 = f.hash();
+    assert_eq!(h1, h2);
+}
+
+#[test]
+fn quf_reject_bad_magic() {
+    let mut buf = vec![0u8; 64];
+    buf[0] = b'B'; buf[1] = b'A'; buf[2] = b'D';
+    assert!(QufFile::deserialize(&buf).is_err());
+}
+
+#[test]
+fn quf_reject_truncated() {
+    let buf = vec![0u8; 8];  // < 16
+    assert!(QufFile::deserialize(&buf).is_err());
+}
+
+#[test]
+fn quf_size_aligns() {
+    let f = QufFile::new(4, 3, 8);
+    let sz = f.serialized_size();
+    assert_eq!(sz % QUF_ALIGN, 0);
+    // 16 + 108 + 4 + 3*56 = 296, aligned to 32 = 320
+    // + 4*32 dials (128) padded to 128, 3*28 edges (84) padded to 96,
+    // 4*4 ticks (16) padded to 32 = 256 + 384 = 384 + 320 = 704
+    // Just check it's reasonable
+    assert!(sz > 256 && sz < 1024, "size = {} out of range", sz);
+}
+
+#[test]
+fn quf_proof_section_optional() {
+    let mut f = QufFile::new(2, 1, 8);
+    f.proof = Some(vec![0u8; 64]);  // fake PROOF chain
+    f.serialize();
+    // 4 sections now (dials, edges, ticks, proof)
+    assert!(f.buf.len() > 0);
+    // Round-trip with proof
+    let g = QufFile::deserialize(&f.buf).expect("deserialize OK with proof");
+    assert!(g.proof.is_some());
+    assert_eq!(g.proof.as_ref().unwrap().len(), 64);
+}

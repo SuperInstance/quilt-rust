@@ -39,6 +39,7 @@
 extern crate alloc;
 use alloc::string::String;
 use alloc::string::ToString;
+use alloc::vec;
 use alloc::vec::Vec;
 
 /// The 5+1+1+1+1 opcodes (9 total).
@@ -726,4 +727,438 @@ fn fnv1a64_str(s: &str) -> u64 {
         h = h.wrapping_mul(0x100000001b3);
     }
     h
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// QUF — Quilt Universal Format (Phase 237, cutting-edge adoption #6)
+//
+// The state-serialization format shared with quilt-verilog. A QUF
+// file written by this Rust port is loadable by quilt-c's deserializer
+// (and vice versa) and by the Verilog fabric's rtl/q_uf_loader.v.
+// The on-wire format follows quilt-verilog's QUF-SPEC.md (R1-R9).
+//
+// The polyformalism claim: a QUF file is a Quilt, condensed. The same
+// 5+1+1+1+1+1+1 opcodes (10 now, with QUF), the same FNV-1a, the same
+// little-endian wire format, the same R1-R9 enforcement. The cowboy
+// wrote this so a saved-state file is a portable artifact.
+// ════════════════════════════════════════════════════════════════════════
+
+/// QUF magic bytes (R1 of QUF-SPEC.md).
+pub const QUF_MAGIC: [u8; 4] = [b'Q', b'U', b'F', 0x00];
+/// QUF version (R1: only version=1 is defined).
+pub const QUF_VERSION: u32 = 1;
+/// QUF endianness (R2: only little-endian=1 is defined).
+pub const QUF_ENDIAN: u32 = 1;
+/// QUF section alignment (R9: every section offset is a multiple).
+pub const QUF_ALIGN: usize = 32;
+
+/// One dial row in a QUF file (matches quilt-c's `quilt_quf_dial_row_t`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QufDialRow {
+    /// Integer value (16-bit).
+    pub i16: u16,
+    /// Q15.15 fixed-point overlay of a float.
+    pub q1515: u16,
+    /// Type tag (matches `Op` discriminant; 0=null, 1=bool, 2=int, 3=float, 4=str).
+    pub tag: u8,
+    /// Reserved (must be 0).
+    pub rsvd: [u8; 3],
+    /// Future / host overlay (24 bytes; zero-padded in v1).
+    pub pad: [u8; 24],
+}
+
+impl QufDialRow {
+    /// Empty row, all zeros.
+    pub const fn zero() -> Self {
+        Self { i16: 0, q1515: 0, tag: 0, rsvd: [0; 3], pad: [0; 24] }
+    }
+    /// Total on-wire size (must equal 32).
+    pub const WIRE_SIZE: usize = 32;
+}
+
+/// One edge row (12 + K*2 bytes, K = ladder buckets).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QufEdgeRow {
+    /// Source cell id.
+    pub src: u16,
+    /// Dest cell id.
+    pub dst: u16,
+    /// Base weight (Q1.15).
+    pub base_w: u16,
+    /// Flags (bit 0: valid).
+    pub flags: u16,
+    /// Walk count (Hebbian).
+    pub walk_count: u32,
+    /// Ladder buckets.
+    pub ladder: [u16; 8],
+}
+
+impl QufEdgeRow {
+    /// Empty row, all zeros.
+    pub const fn zero() -> Self {
+        Self { src: 0, dst: 0, base_w: 0, flags: 0, walk_count: 0, ladder: [0; 8] }
+    }
+    /// Compute the wire size for a given K.
+    pub const fn wire_size(k: u8) -> usize {
+        4 * 2 + 4 + (k as usize) * 2
+    }
+}
+
+/// A serialized QUF file. Same shape as quilt-c's `quilt_quf_t` minus
+/// the engine-specific fields.
+#[derive(Debug, Clone)]
+pub struct QufFile {
+    /// Number of cells the file describes.
+    pub cell_count: u16,
+    /// Number of edges.
+    pub edge_count: u16,
+    /// Number of routes.
+    pub route_count: u16,
+    /// Ladder buckets per edge (1..=16, default 8).
+    pub edge_k: u8,
+    /// Cell dial rows.
+    pub dials: Vec<QufDialRow>,
+    /// Edge records.
+    pub edges: Vec<QufEdgeRow>,
+    /// Tick period per cell (u32 each).
+    pub ticks: Vec<u32>,
+    /// Optional PROOF chain.
+    pub proof: Option<Vec<u8>>,
+    /// The serialized QUF bytes (after `serialize()`; empty until then).
+    pub buf: Vec<u8>,
+}
+
+impl QufFile {
+    /// Create a new empty QUF file with the given shape.
+    pub fn new(cell_count: u16, edge_count: u16, edge_k: u8) -> Self {
+        let k = if edge_k == 0 { 8 } else { edge_k };
+        Self {
+            cell_count,
+            edge_count,
+            route_count: 0,
+            edge_k: k,
+            dials: vec![QufDialRow::zero(); cell_count as usize],
+            edges: (0..edge_count).map(|_| QufEdgeRow::zero()).collect(),
+            ticks: vec![0; cell_count as usize],
+            proof: None,
+            buf: Vec::new(),
+        }
+    }
+
+    /// FNV-1a 64-bit hash of the serialized buffer (or of any byte slice).
+    /// Matches `quilt_quf_hash` in the C port.
+    pub fn hash(&self) -> u64 {
+        fnv1a64_bytes(&self.buf)
+    }
+
+    /// Total serialized size in bytes (matches `quilt_quf_sizeof`).
+    pub fn serialized_size(&self) -> usize {
+        let dial_bytes = (self.cell_count as usize) * QufDialRow::WIRE_SIZE;
+        let edge_bytes = (self.edge_count as usize) * QufEdgeRow::wire_size(self.edge_k);
+        let tick_bytes = (self.cell_count as usize) * 4;
+        let proof_bytes = self.proof.as_ref().map(|p| p.len()).unwrap_or(0);
+
+        let n_sections = if self.proof.is_some() { 4 } else { 3 };
+        let front = 16 + 108;             /* header + 5 KVs */
+        let table = 4 + n_sections * 56;  /* section_count + entries */
+        let table_end = front + table;
+        let payload_start = align_up(table_end, QUF_ALIGN);
+
+        let mut padded = 0;
+        padded += align_up(dial_bytes, QUF_ALIGN);
+        padded += align_up(edge_bytes, QUF_ALIGN);
+        padded += align_up(tick_bytes, QUF_ALIGN);
+        if self.proof.is_some() {
+            padded += align_up(proof_bytes, QUF_ALIGN);
+        }
+        if padded == 0 {
+            padded = QUF_ALIGN;
+        }
+        align_up(payload_start + padded, QUF_ALIGN)
+    }
+
+    /// Serialize the file into `buf`. Returns 0 on success, -1 on
+    /// capacity error.
+    pub fn serialize(&mut self) -> i32 {
+        let need = self.serialized_size();
+        self.buf.resize(need, 0);
+
+        let mut p = 0usize;
+        let end = need;
+
+        // ── Fixed header (16 bytes)
+        self.buf[p..p + 4].copy_from_slice(&QUF_MAGIC); p += 4;
+        write_u32(&mut self.buf, p, QUF_VERSION); p += 4;
+        write_u32(&mut self.buf, p, QUF_ENDIAN); p += 4;
+        write_u32(&mut self.buf, p, 5); p += 4;  // kv_count
+
+        // ── KV metadata
+        write_kv_u32(&mut self.buf, &mut p, "cell_count", self.cell_count as u32);
+        write_kv_u32(&mut self.buf, &mut p, "edge_count", self.edge_count as u32);
+        write_kv_u32(&mut self.buf, &mut p, "route_count", self.route_count as u32);
+        write_kv_u32(&mut self.buf, &mut p, "edge.k", self.edge_k as u32);
+        write_kv_u32(&mut self.buf, &mut p, "tick_period",
+                     self.ticks.first().copied().unwrap_or(0));
+
+        // ── Section table offsets (compute, then write)
+        let n_sections = if self.proof.is_some() { 4 } else { 3 };
+        let dial_bytes = (self.cell_count as usize) * QufDialRow::WIRE_SIZE;
+        let edge_bytes = (self.edge_count as usize) * QufEdgeRow::wire_size(self.edge_k);
+        let tick_bytes = (self.cell_count as usize) * 4;
+        let proof_bytes = self.proof.as_ref().map(|p| p.len()).unwrap_or(0);
+
+        let table_end_pos = p + 4 + n_sections * 56;
+        let payload_start = align_up(table_end_pos, QUF_ALIGN);
+        let dial_off  = payload_start;
+        let edge_off  = align_up(dial_off + dial_bytes, QUF_ALIGN);
+        let tick_off  = align_up(edge_off + edge_bytes, QUF_ALIGN);
+        let proof_off = if self.proof.is_some() {
+            align_up(tick_off + tick_bytes, QUF_ALIGN)
+        } else { 0 };
+
+        write_u32(&mut self.buf, p, n_sections as u32); p += 4;
+        write_section(&mut self.buf, &mut p, "dials", dial_off as u64, dial_bytes as u64);
+        write_section(&mut self.buf, &mut p, "edges", edge_off as u64, edge_bytes as u64);
+        write_section(&mut self.buf, &mut p, "ticks", tick_off as u64, tick_bytes as u64);
+        if self.proof.is_some() {
+            write_section(&mut self.buf, &mut p, "proof", proof_off as u64, proof_bytes as u64);
+        }
+
+        // ── Pad to dial_off
+        while p < dial_off { self.buf[p] = 0; p += 1; }
+
+        // ── dials
+        if p + dial_bytes > end { return -1; }
+        for d in &self.dials {
+            self.buf[p..p + 2].copy_from_slice(&d.i16.to_le_bytes()); p += 2;
+            self.buf[p..p + 2].copy_from_slice(&d.q1515.to_le_bytes()); p += 2;
+            self.buf[p] = d.tag; p += 1;
+            self.buf[p..p + 3].copy_from_slice(&d.rsvd); p += 3;
+            self.buf[p..p + 24].copy_from_slice(&d.pad); p += 24;
+        }
+        while p < edge_off { self.buf[p] = 0; p += 1; }
+
+        // ── edges
+        if p + edge_bytes > end { return -1; }
+        for e in &self.edges {
+            self.buf[p..p + 2].copy_from_slice(&e.src.to_le_bytes()); p += 2;
+            self.buf[p..p + 2].copy_from_slice(&e.dst.to_le_bytes()); p += 2;
+            self.buf[p..p + 2].copy_from_slice(&e.base_w.to_le_bytes()); p += 2;
+            self.buf[p..p + 2].copy_from_slice(&e.flags.to_le_bytes()); p += 2;
+            self.buf[p..p + 4].copy_from_slice(&e.walk_count.to_le_bytes()); p += 4;
+            for i in 0..self.edge_k as usize {
+                self.buf[p..p + 2].copy_from_slice(&e.ladder[i].to_le_bytes()); p += 2;
+            }
+        }
+        while p < tick_off { self.buf[p] = 0; p += 1; }
+
+        // ── ticks
+        if p + tick_bytes > end { return -1; }
+        for t in &self.ticks {
+            self.buf[p..p + 4].copy_from_slice(&t.to_le_bytes()); p += 4;
+        }
+        if let Some(ref proof) = self.proof {
+            while p < proof_off { self.buf[p] = 0; p += 1; }
+            if p + proof.len() > end { return -1; }
+            self.buf[p..p + proof.len()].copy_from_slice(proof);
+            p += proof.len();
+        }
+
+        // Final pad to align
+        while p < need { self.buf[p] = 0; p += 1; }
+
+        0
+    }
+
+    /// Parse a QUF byte buffer into this struct. Returns 0 on success,
+    /// -1 on any R1-R9 violation.
+    pub fn deserialize(buf: &[u8]) -> Result<Self, &'static str> {
+        if buf.len() < 16 { return Err("R3 truncated header"); }
+        if buf[0..4] != QUF_MAGIC { return Err("R1 bad magic"); }
+        let version = read_u32(buf, 4);
+        let endian = read_u32(buf, 8);
+        let kv_count = read_u32(buf, 12);
+        if version != QUF_VERSION { return Err("R1 bad version"); }
+        if endian != QUF_ENDIAN { return Err("R2 bad endian"); }
+        if buf.len() % QUF_ALIGN != 0 { return Err("R9 bad alignment"); }
+
+        let mut p = 16usize;
+        let mut cell_count = 0u32;
+        let mut edge_count = 0u32;
+        let mut route_count = 0u32;
+        let mut edge_k = 0u32;
+        let mut tick_period = 0u32;
+
+        for _ in 0..kv_count {
+            if p + 8 > buf.len() { return Err("R3 KV truncated"); }
+            let name_len = read_u32(buf, p) as usize; p += 4;
+            if name_len >= 32 { return Err("KV name too long"); }
+            if p + name_len > buf.len() { return Err("R3 KV name truncated"); }
+            let name = alloc::str::from_utf8(&buf[p..p + name_len]).unwrap_or("");
+            p += name_len;
+            if p + 8 > buf.len() { return Err("R3 KV value truncated"); }
+            let vtype = read_u32(buf, p); p += 4;
+            if vtype != 4 { return Err("E18 KV value type"); }
+            let v = read_u32(buf, p); p += 4;
+            match name {
+                "cell_count" => cell_count = v,
+                "edge_count" => edge_count = v,
+                "route_count" => route_count = v,
+                "edge.k" => edge_k = v,
+                "tick_period" => tick_period = v,
+                _ => {}
+            }
+        }
+
+        if p + 4 > buf.len() { return Err("R3 section_count truncated"); }
+        let n_sections = read_u32(buf, p) as usize; p += 4;
+        if n_sections > 8 { return Err("too many sections"); }
+
+        let mut sections: Vec<(&str, u32, u64, u64)> = Vec::new();
+        for _ in 0..n_sections {
+            if p + 4 > buf.len() { return Err("R3 section entry truncated"); }
+            let name_len = read_u32(buf, p) as usize; p += 4;
+            if name_len >= 32 { return Err("section name too long"); }
+            if p + name_len > buf.len() { return Err("R3 section name truncated"); }
+            let name = alloc::str::from_utf8(&buf[p..p + name_len]).unwrap_or("");
+            p += name_len;
+            if p + 20 > buf.len() { return Err("R3 section fields truncated"); }
+            let kind = read_u32(buf, p); p += 4;
+            let offset = read_u64(buf, p); p += 8;
+            let size = read_u64(buf, p); p += 8;
+            if offset % QUF_ALIGN as u64 != 0 { return Err("R9 section offset not aligned"); }
+            sections.push((name, kind, offset, size));
+        }
+
+        // R6: payload offset >= p (no overlap with front matter)
+        for &(_, _, off, sz) in &sections {
+            if off < p as u64 { return Err("R6 payload overlap"); }
+            if off + sz > buf.len() as u64 { return Err("R3 section extends past EOF"); }
+        }
+
+        // R7: known-section size formulas
+        let k = if edge_k == 0 { 8 } else { edge_k } as u8;
+        for &(name, _, _, sz) in &sections {
+            let expected = match name {
+                "dials" => (cell_count as usize) * QufDialRow::WIRE_SIZE,
+                "edges" => (edge_count as usize) * QufEdgeRow::wire_size(k),
+                "ticks" => (cell_count as usize) * 4,
+                "proof" => sz as usize,
+                _ => continue,
+            };
+            if sz as usize != expected { return Err("R7 size mismatch"); }
+        }
+
+        // Populate
+        use alloc::vec;
+        let mut file = QufFile {
+            cell_count: cell_count as u16,
+            edge_count: edge_count as u16,
+            route_count: route_count as u16,
+            edge_k: k,
+            dials: vec![QufDialRow::zero(); cell_count as usize],
+            edges: vec![QufEdgeRow::zero(); edge_count as usize],
+            ticks: vec![0; cell_count as usize],
+            proof: None,
+            buf: buf.to_vec(),
+        };
+        if cell_count > 0 { file.ticks[0] = tick_period; }
+
+        for &(name, _, offset, size) in &sections {
+            let off = offset as usize;
+            let sz = size as usize;
+            match name {
+                "dials" => {
+                    for i in 0..cell_count as usize {
+                        let row = &buf[off + i * QufDialRow::WIRE_SIZE..
+                                       off + (i + 1) * QufDialRow::WIRE_SIZE];
+                        file.dials[i] = QufDialRow {
+                            i16: u16::from_le_bytes([row[0], row[1]]),
+                            q1515: u16::from_le_bytes([row[2], row[3]]),
+                            tag: row[4],
+                            rsvd: [row[5], row[6], row[7]],
+                            pad: [0u8; 24],
+                        };
+                    }
+                }
+                "edges" => {
+                    let row_size = QufEdgeRow::wire_size(k);
+                    for i in 0..edge_count as usize {
+                        let row = &buf[off + i * row_size..
+                                       off + (i + 1) * row_size];
+                        let mut e = QufEdgeRow::zero();
+                        e.src = u16::from_le_bytes([row[0], row[1]]);
+                        e.dst = u16::from_le_bytes([row[2], row[3]]);
+                        e.base_w = u16::from_le_bytes([row[4], row[5]]);
+                        e.flags = u16::from_le_bytes([row[6], row[7]]);
+                        e.walk_count = u32::from_le_bytes([row[8], row[9], row[10], row[11]]);
+                        for j in 0..k as usize {
+                            e.ladder[j] = u16::from_le_bytes([row[12 + 2*j], row[13 + 2*j]]);
+                        }
+                        file.edges[i] = e;
+                    }
+                }
+                "ticks" => {
+                    for i in 0..cell_count as usize {
+                        file.ticks[i] = u32::from_le_bytes([
+                            buf[off + 4*i], buf[off + 4*i + 1],
+                            buf[off + 4*i + 2], buf[off + 4*i + 3],
+                        ]);
+                    }
+                }
+                "proof" => file.proof = Some(buf[off..off + sz].to_vec()),
+                _ => {}
+            }
+        }
+        Ok(file)
+    }
+}
+
+fn fnv1a64_bytes(s: &[u8]) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for &b in s {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+fn write_u32(buf: &mut [u8], p: usize, v: u32) {
+    buf[p..p + 4].copy_from_slice(&v.to_le_bytes());
+}
+
+fn write_u64(buf: &mut [u8], p: usize, v: u64) {
+    buf[p..p + 8].copy_from_slice(&v.to_le_bytes());
+}
+
+fn read_u32(buf: &[u8], p: usize) -> u32 {
+    u32::from_le_bytes([buf[p], buf[p + 1], buf[p + 2], buf[p + 3]])
+}
+
+fn read_u64(buf: &[u8], p: usize) -> u64 {
+    u64::from_le_bytes([
+        buf[p], buf[p + 1], buf[p + 2], buf[p + 3],
+        buf[p + 4], buf[p + 5], buf[p + 6], buf[p + 7],
+    ])
+}
+
+fn write_kv_u32(buf: &mut [u8], p: &mut usize, name: &str, v: u32) {
+    let nl = name.len() as u32;
+    write_u32(buf, *p, nl); *p += 4;
+    buf[*p..*p + name.len()].copy_from_slice(name.as_bytes()); *p += name.len();
+    write_u32(buf, *p, 4); *p += 4;  // value type = u32
+    write_u32(buf, *p, v); *p += 4;
+}
+
+fn write_section(buf: &mut [u8], p: &mut usize, name: &str, off: u64, sz: u64) {
+    let nl = name.len() as u32;
+    write_u32(buf, *p, nl); *p += 4;
+    buf[*p..*p + name.len()].copy_from_slice(name.as_bytes()); *p += name.len();
+    write_u32(buf, *p, 0); *p += 4;  // kind = 0 (raw)
+    write_u64(buf, *p, off); *p += 8;
+    write_u64(buf, *p, sz); *p += 8;
+}
+
+fn align_up(v: usize, a: usize) -> usize {
+    (v + a - 1) & !(a - 1)
 }
