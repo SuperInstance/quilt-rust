@@ -1,0 +1,14 @@
+[package]
+name = "live-canon"
+version = "0.1.0"
+edition = "2021"
+description = "Live Canon — read AI-Writings as a navigable cell fabric"
+license = "MIT"
+
+[lib]
+name = "live_canon"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
