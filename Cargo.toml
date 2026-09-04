@@ -7,6 +7,8 @@ members = [
     "packages/tui",
     "packages/web",
     "crates/field-edge-bridge",
+    "crates/federated-tinyml",
+    "crates/live-canon",
     "crates/quilt-cabi",
     "crates/quilt-core-wasm",
     "crates/quilt-wire",

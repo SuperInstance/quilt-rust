@@ -1,0 +1,14 @@
+[package]
+name = "federated-tinyml"
+version = "0.1.0"
+edition = "2021"
+description = "F170 — Federated TinyML for the Vessel Edge. Rust port. Frozen audio backbone + 1.3 KB classifier head + FedAvg. Byte-exact with Python and JS."
+license = "MIT"
+repository = "https://github.com/SuperInstance/quilt-rust"
+
+[lib]
+name = "federated_tinyml"
+path = "src/lib.rs"
+
+[dependencies]
+
