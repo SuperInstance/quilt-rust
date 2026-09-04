@@ -267,7 +267,8 @@ impl LiveCanon {
             let score = (title_matches * 100 + h1_matches * 50 + body_matches * 25
                 + fn_matches * 200) as f32 + recency;
 
-            if score > 0.0 {
+            // Only consider papers with at least one token match (not just recency).
+            if title_matches + h1_matches + body_matches + fn_matches > 0 {
                 scored.push(ClaimCandidate {
                     number: *n,
                     title: paper.title.clone(),
@@ -698,9 +699,10 @@ mod tests {
     fn test_claim_no_match_returns_none() {
         let mut canon = LiveCanon::new();
         let mut p = make_paper(1, 1, 1, vec![]);
-        p.title = "completely unrelated topic".to_string();
+        p.title = "completely unrelated topic here please".to_string();
         canon.add(p);
-        assert!(canon.claim("xyzzy frobnicate").is_none());
+        // Use a query with no word-overlap with the title.
+        assert!(canon.claim("wibbly wobbly zzzz qqqq").is_none());
     }
 
     #[test]
