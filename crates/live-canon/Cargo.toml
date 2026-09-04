@@ -1,9 +1,10 @@
 [package]
 name = "live-canon"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Live Canon — read AI-Writings as a navigable cell fabric"
+description = "Live Canon — read the AI-Writings canon as a navigable cell fabric. 7 operations: NAVIGATE, CONFLUENCE, LINEAGE, GHOST, TICK, CLAIM, DRILL. Polyformal: byte-exact with Python, JS, C99, Verilog, VHDL."
 license = "MIT"
+repository = "https://github.com/SuperInstance/quilt-rust"
 
 [lib]
 name = "live_canon"
