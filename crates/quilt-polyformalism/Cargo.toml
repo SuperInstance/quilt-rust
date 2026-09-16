@@ -1,0 +1,10 @@
+[package]
+name = "quilt-polyformalism"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "The Quilt 5+1+1+1+1 opcodes as a standalone polyformalism port"
+
+[dependencies]
+# Pure-Rust, no_std-friendly. The polyformalism claim is the
+# opcode set, not the substrate.
