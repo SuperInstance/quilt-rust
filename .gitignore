@@ -7,3 +7,18 @@ Cargo.lock
 # Python
 __pycache__/
 *.pyc
+
+# added by commit-and-push-all
+*.pyd
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+target/
+node_modules/
+.cache/
+.wrangler/
+*.log
+.env
