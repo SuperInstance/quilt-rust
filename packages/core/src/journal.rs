@@ -971,7 +971,12 @@ impl JournalWriter {
                     } else {
                         *torn_offset
                     } as u64;
-                    file.set_len(kept)?;
+                    // Windows: an append(true) handle carries FILE_APPEND_DATA
+                    // but not FILE_WRITE_DATA, so set_len on it fails with
+                    // ERROR_ACCESS_DENIED (os error 5). Truncate through a
+                    // dedicated write handle, same as recover_file.
+                    let wf = OpenOptions::new().write(true).open(path)?;
+                    wf.set_len(kept)?;
                 }
                 match report.frames.last() {
                     Some(last) => last.seq + 1,
