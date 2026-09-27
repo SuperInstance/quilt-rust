@@ -361,7 +361,11 @@ fn pty_loopback_lossy_transport_espnow_sim() {
         }
         // Synthetic radio RSSI: square wave -62/-58 dBm (mean -60), what an
         // ESP-Now recv callback would observe per frame, here per read chunk.
-        let rssi: i16 = if (chunk / 10) % 2 == 0 { -62 } else { -58 };
+        let rssi: i16 = if (chunk / 10).is_multiple_of(2) {
+            -62
+        } else {
+            -58
+        };
         chunk += 1;
         peer.feed(&buf[..n], epoch_ms(), Some(rssi), |line| {
             lines.push_str(line);

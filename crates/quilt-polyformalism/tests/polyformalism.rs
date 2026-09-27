@@ -98,7 +98,10 @@ fn route_policy_int() {
 
 #[test]
 fn route_policy_float() {
-    assert_eq!(route_policy(&Value::Float(3.14)), RouteKind::DenseVec);
+    assert_eq!(
+        route_policy(&Value::Float(std::f64::consts::PI)),
+        RouteKind::DenseVec
+    );
 }
 
 #[test]
@@ -116,7 +119,9 @@ fn route_policy_long_str() {
 fn pn_counter_basic() {
     let mut c = PnCounter::new();
     assert_eq!(c.value(), 0);
-    c.inc(0); c.inc(0); c.inc(1);
+    c.inc(0);
+    c.inc(0);
+    c.inc(1);
     assert_eq!(c.value(), 3);
     c.dec(0);
     assert_eq!(c.value(), 2);
@@ -128,9 +133,13 @@ fn pn_counter_convergence() {
     let mut a = PnCounter::new();
     let mut b = PnCounter::new();
     // A: inc(0), inc(0), inc(1)
-    a.inc(0); a.inc(0); a.inc(1);
+    a.inc(0);
+    a.inc(0);
+    a.inc(1);
     // B: inc(1), inc(0), inc(0)
-    b.inc(1); b.inc(0); b.inc(0);
+    b.inc(1);
+    b.inc(0);
+    b.inc(0);
     assert_eq!(a.value(), b.value());
     a.merge(&b);
     assert_eq!(a.value(), 3);
@@ -149,7 +158,7 @@ fn fnv1a64_distinct_for_distinct_values() {
 // Phase 222: physical.world cell kind (Code-as-World port)
 // ─────────────────────────────────────────────────────────────────
 
-use quilt_polyformalism::{WorldCell, WorldOp, world_kind_name, world_kind_count};
+use quilt_polyformalism::{world_kind_count, world_kind_name, WorldCell, WorldOp};
 
 #[test]
 fn world_kind_name_is_physical_world() {
@@ -161,9 +170,9 @@ fn world_kind_name_is_physical_world() {
 fn world_op_names_match_c_port() {
     assert_eq!(WorldOp::Propose.name(), "PROPOSE");
     assert_eq!(WorldOp::Execute.name(), "EXECUTE");
-    assert_eq!(WorldOp::Render.name(),  "RENDER");
-    assert_eq!(WorldOp::Verify.name(),  "VERIFY");
-    assert_eq!(WorldOp::Refine.name(),  "REFINE");
+    assert_eq!(WorldOp::Render.name(), "RENDER");
+    assert_eq!(WorldOp::Verify.name(), "VERIFY");
+    assert_eq!(WorldOp::Refine.name(), "REFINE");
 }
 
 #[test]
@@ -172,16 +181,16 @@ fn world_op_indices_match_c_port() {
     // match for cross-language polyformalism compatibility.
     assert_eq!(WorldOp::Propose as usize, 0);
     assert_eq!(WorldOp::Execute as usize, 1);
-    assert_eq!(WorldOp::Render  as usize, 2);
-    assert_eq!(WorldOp::Verify  as usize, 3);
-    assert_eq!(WorldOp::Refine  as usize, 4);
+    assert_eq!(WorldOp::Render as usize, 2);
+    assert_eq!(WorldOp::Verify as usize, 3);
+    assert_eq!(WorldOp::Refine as usize, 4);
 }
 
 #[test]
 fn world_cell_init_state_hash_is_zero() {
     let cell = WorldCell::new();
     assert_eq!(cell.state_hash, [0u8; 32]);
-    assert_eq!(cell.prev_hash,  [0u8; 32]);
+    assert_eq!(cell.prev_hash, [0u8; 32]);
     assert_eq!(cell.code, "");
     assert!(!cell.verified);
     assert_eq!(cell.n_propose, 0);
@@ -253,7 +262,7 @@ fn world_cell_verify_resets_on_propose() {
     let mut cell = WorldCell::new();
     cell.propose("x = 1");
     cell.verify(0.0, 100.0);
-    assert!(cell.verified);  // wide tolerance -> pass
+    assert!(cell.verified); // wide tolerance -> pass
     cell.propose("x = 2");
     assert!(!cell.verified);
 }
@@ -282,7 +291,7 @@ fn world_cell_refine_appends_hint() {
 // QUF (Phase 237) — Quilt Universal Format tests
 // ════════════════════════════════════════════════════════════════════════
 
-use quilt_polyformalism::{QufFile, QufDialRow, QufEdgeRow, QUF_ALIGN};
+use quilt_polyformalism::{QufDialRow, QufEdgeRow, QufFile, QUF_ALIGN};
 
 #[test]
 fn quf_dial_row_size_is_32() {
@@ -302,18 +311,27 @@ fn quf_serialize_then_deserialize() {
     f.dials[1].i16 = 11;
     f.dials[2].i16 = 13;
     f.dials[3].i16 = 17;
-    f.dials[0].tag = 2;  // INT
-    f.edges[0].src = 0; f.edges[0].dst = 1;
-    f.edges[0].flags = 1; f.edges[0].walk_count = 42;
-    f.edges[1].src = 1; f.edges[1].dst = 2;
-    f.edges[1].flags = 1; f.edges[1].walk_count = 100;
-    f.edges[2].src = 2; f.edges[2].dst = 3;
-    f.edges[2].flags = 1; f.edges[2].walk_count = 7;
-    f.ticks[0] = 100; f.ticks[1] = 100; f.ticks[2] = 100; f.ticks[3] = 100;
+    f.dials[0].tag = 2; // INT
+    f.edges[0].src = 0;
+    f.edges[0].dst = 1;
+    f.edges[0].flags = 1;
+    f.edges[0].walk_count = 42;
+    f.edges[1].src = 1;
+    f.edges[1].dst = 2;
+    f.edges[1].flags = 1;
+    f.edges[1].walk_count = 100;
+    f.edges[2].src = 2;
+    f.edges[2].dst = 3;
+    f.edges[2].flags = 1;
+    f.edges[2].walk_count = 7;
+    f.ticks[0] = 100;
+    f.ticks[1] = 100;
+    f.ticks[2] = 100;
+    f.ticks[3] = 100;
 
     let rc = f.serialize();
     assert_eq!(rc, 0);
-    assert!(f.buf.len() > 0);
+    assert!(!f.buf.is_empty());
     assert_eq!(f.buf.len() % QUF_ALIGN, 0);
     // Magic
     assert_eq!(&f.buf[0..4], b"QUF\0");
@@ -341,13 +359,15 @@ fn quf_hash_is_deterministic() {
 #[test]
 fn quf_reject_bad_magic() {
     let mut buf = vec![0u8; 64];
-    buf[0] = b'B'; buf[1] = b'A'; buf[2] = b'D';
+    buf[0] = b'B';
+    buf[1] = b'A';
+    buf[2] = b'D';
     assert!(QufFile::deserialize(&buf).is_err());
 }
 
 #[test]
 fn quf_reject_truncated() {
-    let buf = vec![0u8; 8];  // < 16
+    let buf = vec![0u8; 8]; // < 16
     assert!(QufFile::deserialize(&buf).is_err());
 }
 
@@ -366,10 +386,10 @@ fn quf_size_aligns() {
 #[test]
 fn quf_proof_section_optional() {
     let mut f = QufFile::new(2, 1, 8);
-    f.proof = Some(vec![0u8; 64]);  // fake PROOF chain
+    f.proof = Some(vec![0u8; 64]); // fake PROOF chain
     f.serialize();
     // 4 sections now (dials, edges, ticks, proof)
-    assert!(f.buf.len() > 0);
+    assert!(!f.buf.is_empty());
     // Round-trip with proof
     let g = QufFile::deserialize(&f.buf).expect("deserialize OK with proof");
     assert!(g.proof.is_some());

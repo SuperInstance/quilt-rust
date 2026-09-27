@@ -302,9 +302,9 @@ impl QuiltMcpServer {
 
 #[tool_handler(router = self.tool_router.clone())]
 impl ServerHandler for QuiltMcpServer {
-    fn get_info(&self) -> ServerInfo {
+    fn get_info(&self) -> ServerConfig {
         let cell_count = self.engine.list_cells().len();
-        ServerInfo::new(
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 // Issue #7 (option A): the resource handlers are real — advertise

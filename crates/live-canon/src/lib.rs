@@ -34,25 +34,34 @@ pub type Dials = [u16; 16];
 pub fn cell_to_dials(cell: &Cell) -> Dials {
     let year_q = if cell.date.len() >= 4 {
         let year: u32 = cell.date[..4].parse().unwrap_or(1970);
-        ((year.saturating_sub(1970)).min(60) as u16) * 546  // 60 years → 0x7FFF
-    } else { 0 };
-    let phase_q = ((cell.phase.min(300)) as u16) * 218;  // 300 → 0x7FFF
+        ((year.saturating_sub(1970)).min(60) as u16) * 546 // 60 years → 0x7FFF
+    } else {
+        0
+    };
+    let phase_q = ((cell.phase.min(300)) as u16) * 218; // 300 → 0x7FFF
     let f_q = ((cell.f_number.min(300)) as u16) * 218;
     let n_refs = (cell.ref_papers.len() + cell.ref_f_numbers.len()).min(127) as u16;
     let n_refs_q = n_refs * 256;
     let title_hash = hash_str(&cell.title);
-    let num_q = ((cell.number.min(500)) as u16) * 131;  // 500 → 0x7FFF
+    let num_q = ((cell.number.min(500)) as u16) * 131; // 500 → 0x7FFF
 
     [
-        num_q,                // 0: paper number
-        (title_hash & 0xFFFF) as u16,  // 1: title hash
-        f_q,                  // 2: F-number
-        phase_q,              // 3: phase
-        year_q,               // 4: year
-        n_refs_q,             // 5: number of refs
-        ((title_hash >> 16) & 0xFFFF) as u16,  // 6: title hash high
-        0,                    // 7: reserved
-        0, 0, 0, 0, 0, 0, 0, 0,
+        num_q,                                // 0: paper number
+        (title_hash & 0xFFFF) as u16,         // 1: title hash
+        f_q,                                  // 2: F-number
+        phase_q,                              // 3: phase
+        year_q,                               // 4: year
+        n_refs_q,                             // 5: number of refs
+        ((title_hash >> 16) & 0xFFFF) as u16, // 6: title hash high
+        0,                                    // 7: reserved
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ]
 }
 
@@ -204,7 +213,8 @@ impl LiveCanon {
 
     /// LINEAGE: trace a concept (F-number) through time.
     pub fn lineage(&self, f_number: u32) -> Vec<&Cell> {
-        let mut result: Vec<&Cell> = self.papers
+        let mut result: Vec<&Cell> = self
+            .papers
             .values()
             .filter(|c| c.ref_f_numbers.contains(&f_number))
             .collect();
@@ -218,7 +228,8 @@ impl LiveCanon {
             Some(d) => *d,
             None => return Vec::new(),
         };
-        let mut scored: Vec<(u32, f32)> = self.dials
+        let mut scored: Vec<(u32, f32)> = self
+            .dials
             .iter()
             .filter(|(n, _)| **n != paper_num)
             .map(|(n, d)| {
@@ -242,10 +253,10 @@ impl LiveCanon {
     /// paper (recency-tied) — this is honest, not a hallucination.
     pub fn claim(&self, query: &str) -> Option<ClaimResult> {
         let q = query.to_lowercase();
-        let q_tokens: Vec<&str> = q.split_whitespace()
-            .filter(|t| t.len() >= 2)
-            .collect();
-        if q_tokens.is_empty() { return None; }
+        let q_tokens: Vec<&str> = q.split_whitespace().filter(|t| t.len() >= 2).collect();
+        if q_tokens.is_empty() {
+            return None;
+        }
 
         // Try to extract F-number hints from the query
         let query_fns: Vec<u32> = extract_f_numbers(&q);
@@ -253,19 +264,30 @@ impl LiveCanon {
         let mut scored: Vec<ClaimCandidate> = Vec::new();
         for (n, paper) in &self.papers {
             let title = paper.title.to_lowercase();
-            let body = self.bodies.get(n).map(|b| b.excerpt.to_lowercase()).unwrap_or_default();
-            let h1 = self.bodies.get(n).map(|b| b.h1.to_lowercase()).unwrap_or_default();
+            let body = self
+                .bodies
+                .get(n)
+                .map(|b| b.excerpt.to_lowercase())
+                .unwrap_or_default();
+            let h1 = self
+                .bodies
+                .get(n)
+                .map(|b| b.h1.to_lowercase())
+                .unwrap_or_default();
 
             let title_matches = q_tokens.iter().filter(|t| title.contains(**t)).count();
             let h1_matches = q_tokens.iter().filter(|t| h1.contains(**t)).count();
             let body_matches = q_tokens.iter().filter(|t| body.contains(**t)).count();
-            let fn_matches = query_fns.iter()
+            let fn_matches = query_fns
+                .iter()
                 .filter(|f| paper.ref_f_numbers.contains(f))
                 .count();
             let recency = paper.f_number as f32 * 0.1;
 
-            let score = (title_matches * 100 + h1_matches * 50 + body_matches * 25
-                + fn_matches * 200) as f32 + recency;
+            let score =
+                (title_matches * 100 + h1_matches * 50 + body_matches * 25 + fn_matches * 200)
+                    as f32
+                    + recency;
 
             // Only consider papers with at least one token match (not just recency).
             if title_matches + h1_matches + body_matches + fn_matches > 0 {
@@ -277,12 +299,18 @@ impl LiveCanon {
                     date: paper.date.clone(),
                     ref_f_numbers: paper.ref_f_numbers.clone(),
                     score,
-                    excerpt: self.bodies.get(n).map(|b| b.excerpt.clone()).unwrap_or_default(),
+                    excerpt: self
+                        .bodies
+                        .get(n)
+                        .map(|b| b.excerpt.clone())
+                        .unwrap_or_default(),
                 });
             }
         }
         scored.sort_by(|a, b| {
-            b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
                 .then(b.f_number.cmp(&a.f_number))
                 .then(b.ref_f_numbers.len().cmp(&a.ref_f_numbers.len()))
         });
@@ -307,18 +335,27 @@ impl LiveCanon {
         let mut top: Vec<ClaimCandidate> = vec![c.winner.clone()];
         top.extend(c.runners_up.iter().cloned());
         top.truncate(3);
-        while top.len() < 3 { top.push(top.last().cloned().unwrap_or_else(|| c.winner.clone())); }
+        while top.len() < 3 {
+            top.push(top.last().cloned().unwrap_or_else(|| c.winner.clone()));
+        }
 
         // Reorder: most-cited-as-ref = DOCTRINE
-        if top.len() == 3 && top.iter().all(|t| true) {
-            let ref_sets: Vec<std::collections::HashSet<u32>> = top.iter()
+        if top.len() == 3 && top.iter().all(|_t| true) {
+            let ref_sets: Vec<std::collections::HashSet<u32>> = top
+                .iter()
                 .map(|t| t.ref_f_numbers.iter().cloned().collect())
                 .collect();
-            let cited_by: Vec<usize> = top.iter().enumerate().map(|(i, t)| {
-                ref_sets.iter().enumerate().filter(|(j, s)| {
-                    *j != i && s.contains(&t.f_number)
-                }).count()
-            }).collect();
+            let cited_by: Vec<usize> = top
+                .iter()
+                .enumerate()
+                .map(|(i, t)| {
+                    ref_sets
+                        .iter()
+                        .enumerate()
+                        .filter(|(j, s)| *j != i && s.contains(&t.f_number))
+                        .count()
+                })
+                .collect();
             if let Some((max_idx, _)) = cited_by.iter().enumerate().max_by_key(|(_, &v)| v) {
                 if max_idx != 0 {
                     top.swap(0, max_idx);
@@ -345,7 +382,9 @@ impl LiveCanon {
 }
 
 impl Default for LiveCanon {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Result of a CONFLUENCE operation.
@@ -360,10 +399,18 @@ pub struct ConfluenceResult {
 
 /// Cosine similarity between two 16-dial vectors.
 pub fn cosine_sim(a: &Dials, b: &Dials) -> f32 {
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| (*x as f32) * (*y as f32)).sum();
+    let dot: f32 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| (*x as f32) * (*y as f32))
+        .sum();
     let na: f32 = a.iter().map(|x| (*x as f32).powi(2)).sum::<f32>().sqrt();
     let nb: f32 = b.iter().map(|x| (*x as f32).powi(2)).sum::<f32>().sqrt();
-    if na == 0.0 || nb == 0.0 { 0.0 } else { dot / (na * nb) }
+    if na == 0.0 || nb == 0.0 {
+        0.0
+    } else {
+        dot / (na * nb)
+    }
 }
 
 /// A candidate paper in a CLAIM/DRILL result.
@@ -407,9 +454,13 @@ fn extract_f_numbers(q: &str) -> Vec<u32> {
         if bytes[i] == b'f' || bytes[i] == b'F' {
             // skip optional space
             let mut j = i + 1;
-            while j < bytes.len() && bytes[j] == b' ' { j += 1; }
+            while j < bytes.len() && bytes[j] == b' ' {
+                j += 1;
+            }
             let start = j;
-            while j < bytes.len() && bytes[j].is_ascii_digit() { j += 1; }
+            while j < bytes.len() && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
             if j > start {
                 if let Ok(n) = q[start..j].parse::<u32>() {
                     out.push(n);
@@ -441,13 +492,17 @@ pub fn parse_paper(text: &str) -> Option<Cell> {
     let mut refs: BTreeSet<u32> = BTreeSet::new();
     for cap in regex_iter(text, r"paper-(\d{3})\b") {
         if let Ok(n) = cap.parse::<u32>() {
-            if n != number { refs.insert(n); }
+            if n != number {
+                refs.insert(n);
+            }
         }
     }
     let mut f_refs: BTreeSet<u32> = BTreeSet::new();
     for cap in regex_iter(text, r"\bF(\d{1,3})\b") {
         if let Ok(n) = cap.parse::<u32>() {
-            if n != f_number { f_refs.insert(n); }
+            if n != f_number {
+                f_refs.insert(n);
+            }
         }
     }
 
@@ -482,7 +537,9 @@ fn regex_iter(text: &str, pat: &str) -> Vec<String> {
             // Advance past the match
             if let Some(pos) = rest.find(&m) {
                 rest = &rest[pos + m.len()..];
-            } else { break; }
+            } else {
+                break;
+            }
         }
     }
     out
@@ -498,9 +555,13 @@ fn find_in_line(line: &str, pat: &str) -> Option<String> {
             // \b or \d
             if let Some(&next) = chars.peek() {
                 chars.next();
-                if next == 'b' { pieces.push(Piece::WordBoundary); }
-                else if next == 'd' { pieces.push(Piece::Digit); }
-                else { pieces.push(Piece::Literal(next)); }
+                if next == 'b' {
+                    pieces.push(Piece::WordBoundary);
+                } else if next == 'd' {
+                    pieces.push(Piece::Digit);
+                } else {
+                    pieces.push(Piece::Literal(next));
+                }
             }
         } else if c == '(' {
             pieces.push(Piece::GroupStart);
@@ -545,29 +606,39 @@ fn try_match(pieces: &[Piece], s: &[char], start: usize) -> Option<(usize, Optio
     while p < pieces.len() {
         match &pieces[p] {
             Piece::Literal(c) => {
-                if i >= s.len() || s[i] != *c { return None; }
-                i += 1; p += 1;
+                if i >= s.len() || s[i] != *c {
+                    return None;
+                }
+                i += 1;
+                p += 1;
             }
             Piece::Digit => {
-                if i >= s.len() || !s[i].is_ascii_digit() { return None; }
-                if p + 1 < pieces.len() && matches!(pieces[p+1], Piece::Plus) {
+                if i >= s.len() || !s[i].is_ascii_digit() {
+                    return None;
+                }
+                if p + 1 < pieces.len() && matches!(pieces[p + 1], Piece::Plus) {
                     let start = i;
-                    while i < s.len() && s[i].is_ascii_digit() { i += 1; }
+                    while i < s.len() && s[i].is_ascii_digit() {
+                        i += 1;
+                    }
                     captured = Some(s[start..i].iter().collect());
                     p += 2;
                 } else {
                     captured = Some(s[i].to_string());
-                    i += 1; p += 1;
+                    i += 1;
+                    p += 1;
                 }
             }
             Piece::WordBoundary => {
-                let before = if i == 0 { None } else { Some(s[i-1]) };
+                let before = if i == 0 { None } else { Some(s[i - 1]) };
                 let after = if i < s.len() { Some(s[i]) } else { None };
                 let wb = match (before, after) {
                     (Some(b), Some(a)) => b.is_alphanumeric() != a.is_alphanumeric(),
                     _ => false,
                 };
-                if !wb { return None; }
+                if !wb {
+                    return None;
+                }
                 p += 1;
             }
             Piece::GroupStart => p += 1,
@@ -638,7 +709,9 @@ mod tests {
         canon.add(make_paper(1, 100, 1, vec![3]));
         canon.add(make_paper(2, 100, 2, vec![3]));
         let r = canon.confluence(&[1, 2]);
-        assert!(r.suggested_title.contains("Synthesis") || r.suggested_title.contains("Composition"));
+        assert!(
+            r.suggested_title.contains("Synthesis") || r.suggested_title.contains("Composition")
+        );
     }
 
     #[test]
@@ -692,7 +765,7 @@ mod tests {
     fn test_claim_empty_query_returns_none() {
         let canon = LiveCanon::new();
         assert!(canon.claim("").is_none());
-        assert!(canon.claim("a").is_none());  // too short
+        assert!(canon.claim("a").is_none()); // too short
     }
 
     #[test]

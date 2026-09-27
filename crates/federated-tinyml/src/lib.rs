@@ -63,8 +63,8 @@ pub fn hamming_window(n: usize) -> Vec<f32> {
 /// 4. linear projection 180 -> 64 (the frozen backbone)
 /// 5. L2 normalize
 pub struct FeatureExtractor {
-    pub w: Vec<f32>,  // (180, 64) row-major
-    pub b: Vec<f32>,  // (64,)
+    pub w: Vec<f32>, // (180, 64) row-major
+    pub b: Vec<f32>, // (64,)
 }
 
 impl FeatureExtractor {
@@ -100,12 +100,12 @@ impl FeatureExtractor {
         let mfccs = mfcc_features(audio);
         let flat = handcrafted_features(&mfccs);
         let mut h = vec![0.0_f32; 64];
-        for c in 0..64 {
+        for (c, hc) in h.iter_mut().enumerate() {
             let mut s = self.b[c];
-            for d in 0..180 {
-                s += flat[d] * self.w[d * 64 + c];
+            for (d, f) in flat.iter().enumerate() {
+                s += f * self.w[d * 64 + c];
             }
-            h[c] = s;
+            *hc = s;
         }
         let norm: f32 = h.iter().map(|x| x * x).sum::<f32>().sqrt() + 1e-9;
         for v in h.iter_mut() {
@@ -161,7 +161,7 @@ pub fn log_mel_spectrogram(audio: &[f32]) -> Vec<Vec<f32>> {
     let n_frames = (padded.len() - n_fft) / hop + 1;
     let fft_bins = n_fft / 2 + 1;
     // log-spaced mel bins
-    let mut log_bins: Vec<usize> = (0..=n_mels)
+    let log_bins: Vec<usize> = (0..=n_mels)
         .map(|i| {
             let t = i as f32 / n_mels as f32;
             let v = (10f32).powf(t * ((fft_bins - 1) as f32).log10());
@@ -170,6 +170,9 @@ pub fn log_mel_spectrogram(audio: &[f32]) -> Vec<Vec<f32>> {
         .collect();
     // Build frames
     let mut out = vec![vec![0.0_f32; n_frames]; n_mels];
+    // The frame loop walks a column of the (row-major) mel matrix out[m][frame],
+    // so enumerate can't express it; keep the indexed loop.
+    #[allow(clippy::needless_range_loop)]
     for frame in 0..n_frames {
         let start = frame * hop;
         // windowed frame FFT
@@ -257,7 +260,13 @@ pub fn mfcc_features(audio: &[f32]) -> Vec<Vec<f32>> {
     let n_frames = spec[0].len();
     // DCT basis
     let dct_basis: Vec<Vec<f32>> = (0..n_mfcc)
-        .map(|k| (0..n).map(|i| (std::f32::consts::PI * k as f32 * (2 * i + 1) as f32 / (2 * n) as f32).cos()).collect())
+        .map(|k| {
+            (0..n)
+                .map(|i| {
+                    (std::f32::consts::PI * k as f32 * (2 * i + 1) as f32 / (2 * n) as f32).cos()
+                })
+                .collect()
+        })
         .collect();
     // MFCCs
     let mut mfccs = vec![vec![0.0_f32; n_frames]; n_mfcc];
@@ -276,8 +285,11 @@ pub fn mfcc_features(audio: &[f32]) -> Vec<Vec<f32>> {
             .map(|k| {
                 (0..n_frames)
                     .map(|t| {
-                        if t == 0 || t == n_frames - 1 { 0.0 }
-                        else { (mfccs[k][t + 1] - mfccs[k][t - 1]) / 2.0 }
+                        if t == 0 || t == n_frames - 1 {
+                            0.0
+                        } else {
+                            (mfccs[k][t + 1] - mfccs[k][t - 1]) / 2.0
+                        }
                     })
                     .collect()
             })
@@ -290,8 +302,11 @@ pub fn mfcc_features(audio: &[f32]) -> Vec<Vec<f32>> {
             .map(|k| {
                 (0..n_frames)
                     .map(|t| {
-                        if t == 0 || t == n_frames - 1 { 0.0 }
-                        else { (delta[k][t + 1] - delta[k][t - 1]) / 2.0 }
+                        if t == 0 || t == n_frames - 1 {
+                            0.0
+                        } else {
+                            (delta[k][t + 1] - delta[k][t - 1]) / 2.0
+                        }
                     })
                     .collect()
             })
@@ -329,8 +344,8 @@ pub fn handcrafted_features(mfccs: &[Vec<f32>]) -> Vec<f32> {
 pub struct ClassifierHead {
     pub num_classes: usize,
     pub embedding_dim: usize,
-    pub w: Vec<f32>,  // (embedding_dim, num_classes) row-major
-    pub b: Vec<f32>,  // (num_classes,)
+    pub w: Vec<f32>, // (embedding_dim, num_classes) row-major
+    pub b: Vec<f32>, // (num_classes,)
     pub steps: usize,
     pub samples_seen: usize,
 }
@@ -375,12 +390,12 @@ impl ClassifierHead {
 
     pub fn forward(&self, embedding: &[f32]) -> Vec<f32> {
         let mut logits = vec![0.0_f32; self.num_classes];
-        for c in 0..self.num_classes {
+        for (c, logit) in logits.iter_mut().enumerate() {
             let mut s = self.b[c];
-            for d in 0..self.embedding_dim {
-                s += embedding[d] * self.w[d * self.num_classes + c];
+            for (d, x_d) in embedding.iter().enumerate() {
+                s += x_d * self.w[d * self.num_classes + c];
             }
-            logits[c] = s;
+            *logit = s;
         }
         self.softmax(&mut logits);
         logits
@@ -400,11 +415,11 @@ impl ClassifierHead {
         let n = embeddings.len() as f32;
         let mut total_loss = 0.0;
         for (x, &y) in embeddings.iter().zip(labels.iter()) {
-            let mut probs = self.forward(x);
-            for c in 0..self.num_classes {
-                let grad = probs[c] - if c == y { 1.0 } else { 0.0 };
-                for d in 0..self.embedding_dim {
-                    self.w[d * self.num_classes + c] -= lr * grad * x[d] / n;
+            let probs = self.forward(x);
+            for (c, p) in probs.iter().enumerate() {
+                let grad = *p - if c == y { 1.0 } else { 0.0 };
+                for (d, x_d) in x.iter().enumerate() {
+                    self.w[d * self.num_classes + c] -= lr * grad * x_d / n;
                 }
                 self.b[c] -= lr * grad / n;
             }
@@ -457,8 +472,12 @@ impl ClassifierHead {
         let embedding_dim = heads[0].embedding_dim;
         let total_weight: usize = weights.iter().sum();
         let mut h = ClassifierHead::new(num_classes, embedding_dim, 0);
-        for v in h.w.iter_mut() { *v = 0.0; }
-        for v in h.b.iter_mut() { *v = 0.0; }
+        for v in h.w.iter_mut() {
+            *v = 0.0;
+        }
+        for v in h.b.iter_mut() {
+            *v = 0.0;
+        }
         for (head, &w) in heads.iter().zip(weights.iter()) {
             let scale = w as f32 / total_weight as f32;
             for (dst, src) in h.w.iter_mut().zip(head.w.iter()) {
@@ -470,6 +489,23 @@ impl ClassifierHead {
         }
         h
     }
+}
+
+/// Deterministic PRNG for tests (LCG)
+#[cfg(test)]
+fn rand_deterministic() -> f32 {
+    use std::cell::RefCell;
+    thread_local! {
+        static STATE: RefCell<u64> = const { RefCell::new(0xDEADBEEF) };
+    }
+    STATE.with(|s| {
+        let mut state = s.borrow_mut();
+        *state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let shifted = *state >> 33;
+        (shifted as f64 / u32::MAX as f64) as f32
+    })
 }
 
 #[cfg(test)]
@@ -568,14 +604,11 @@ mod tests {
         // Device 0: class 0 = embedding with [1,0,0,...]
         // Device 1: class 1 = embedding with [0,1,0,...]
         // etc.
-        for round in 0..20 {
+        for _round in 0..20 {
             let mut device_heads = Vec::new();
             for device_id in 0..num_classes {
-                let mut local_head = ClassifierHead::from_bytes(
-                    &global_head.to_bytes(),
-                    num_classes,
-                    embedding_dim,
-                );
+                let mut local_head =
+                    ClassifierHead::from_bytes(&global_head.to_bytes(), num_classes, embedding_dim);
                 // 8 local samples, all from this device's preferred class
                 let mut xs = Vec::new();
                 let mut ys = Vec::new();
@@ -604,18 +637,4 @@ mod tests {
         let pred = global_head.predict(&emb);
         assert_eq!(pred, 1, "should predict class 1 for class-1 embedding");
     }
-}
-
-/// Deterministic PRNG for tests (LCG)
-fn rand_deterministic() -> f32 {
-    use std::cell::RefCell;
-    thread_local! {
-        static STATE: RefCell<u64> = RefCell::new(0xDEADBEEF);
-    }
-    STATE.with(|s| {
-        let mut state = s.borrow_mut();
-        *state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-        let shifted = *state >> 33;
-        (shifted as f64 / u32::MAX as f64) as f32
-    })
 }
