@@ -20,20 +20,21 @@
 // Run:
 //   cargo test -p quilt-core --test quilt_canonical_vectors -- --nocapture
 
-use std::fs;
-
 use quilt_core::ledger::{canonical_json, sha256};
 use serde_json::Value;
 
-const VECTORS: &str = "../../compat/canonical-vectors.json";
+/// The vectors, COMPILED IN -- the same idiom as the sibling conformance
+/// test's `include_str!("golden.json")`. A runtime path is CWD-dependent
+/// (cargo runs a test binary from the package root, sometimes from the
+/// workspace root), and a check that cannot find its own fixture is a
+/// check that fails for the wrong reason. `include_str!` is resolved
+/// relative to THIS FILE, at compile time, and it fails the BUILD loudly
+/// if the fixture is missing.
+const VECTORS_JSON: &str = include_str!("canonical-vectors.json");
 
 #[test]
 fn the_canonical_form_matches_the_shared_vectors() {
-    let raw = match fs::read_to_string(VECTORS) {
-        Ok(text) => text,
-        Err(e) => panic!("cannot read {VECTORS}: {e}"),
-    };
-    let doc: Value = match serde_json::from_str(&raw) {
+    let doc: Value = match serde_json::from_str(VECTORS_JSON) {
         Ok(v) => v,
         Err(e) => panic!("the vector file is not valid JSON: {e}"),
     };
