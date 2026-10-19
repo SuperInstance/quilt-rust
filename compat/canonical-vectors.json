@@ -1,0 +1,184 @@
+{
+ "at": "2026-10-19",
+ "spec": "quilt-canonical-vectors/1",
+ "purpose": "THE SHARED ARTEFACT FOR THE 'ONE KERNEL, MANY LANGUAGES' CLAIM.\n\ndocs/cell-ledger.md says 'every quilt tier (Rust, TS, Go) produces byte-identical\npreimages from the same data', and that a port 'reproduces the same chain hashes\nfrom the same entries'. The Rust and Python tiers SHARE a golden\n(compat/golden.json) and are genuinely differential-tested -- bindings/python/\ntests/test_compat.py PASSES and reproduces the Rust golden's three sealed hashes\nand its chain_hash. The Go tier has its OWN golden: a different spec\n(quilt-go-golden/1), a different sheet, and a DIFFERENT chain envelope\n(sha256_hex(chain_prev + ':' + provenance)). So the claim is ASSERTED for Go, not\nchecked. And the TypeScript tier the spec names DOES NOT EXIST -- quilt-rust has\ntwo .ts files and both are demo sheets.\n\nTHE CANONICAL FORM IS THE THING ALL THE TIERS MUST AGREE ON, AND IT IS SMALL\nAND CHECKABLE. So it gets its own vector file: the input, the exact expected\ncanonical bytes, and the sha256 of those bytes.\n\nA port conforms by reproducing every `canonical` string here. That is a\none-line check per port, and it needs no engine, no sheet and no chain.",
+ "generated_by": "SuperInstance/quilt-rust bindings/python/quilt/ledger.py -- the Python tier, which is\nbyte-equivalent to the Rust reference on the golden's own three seals and its\nchain_hash. The Rust tier is the normative one, and the Rust's own conformance\ntest continues to check the Rust golden, so a drift in either direction is caught.",
+ "note": "THE INT/FLOAT HAZARD IS THE POINT OF THIS FILE. docs/cell-ledger.md names it:\n'JavaScript renders 40.0 as 40; ports must preserve float-vs-int distinction to\nstay on-chain.' ECMAScript's JSON.stringify is therefore NOT the rule -- the rule\nis ryū/serde_json semantics, and a port that borrows JSON.stringify will pass\nevery ordinary case and fail exactly the ones that matter.",
+ "case_count": 21,
+ "cases": [
+  {
+   "name": "int renders as an int",
+   "value": 40,
+   "canonical": "40",
+   "sha256": "d59eced1ded07f84c145592f65bdf854358e009c5cd705f5215bf18697fed103"
+  },
+  {
+   "name": "float renders with its marker (the spec's named hazard)",
+   "value": 40.0,
+   "canonical": "40.0",
+   "sha256": "e15274dcfe2d0cb541e8aa23fef7aaaa116bfcbc937d35ffda9d4506c8d7e785"
+  },
+  {
+   "name": "int and float are NOT the same value",
+   "value": [
+    40,
+    40.0
+   ],
+   "canonical": "[40,40.0]",
+   "sha256": "30521c1a5a0c286b2cfb9610d70fe55b5a61793398d83851f2b32c59572216a5"
+  },
+  {
+   "name": "negative zero",
+   "value": -0.0,
+   "canonical": "-0.0",
+   "sha256": "c26617c7ccbcaa6631b45d851b8cf56e21d2ca624bdb1193afdbd4b560702cec"
+  },
+  {
+   "name": "zero",
+   "value": 0.0,
+   "canonical": "0.0",
+   "sha256": "8aed642bf5118b9d3c859bd4be35ecac75b6e873cce34e7b6f554b06f75550d7"
+  },
+  {
+   "name": "a small float in the plain-decimal band",
+   "value": 1e-06,
+   "canonical": "1e-6",
+   "sha256": "f465f55ffed8578e62d598c801779430834a6a908a7b2d25b4b6e9cb1e65b68d"
+  },
+  {
+   "name": "a float just below the band (exponent form)",
+   "value": 1e-07,
+   "canonical": "1e-7",
+   "sha256": "5b33e02f2c5103a05d32f6ba9cb058294452bfbf393967f68bb30c1bdcbbab22"
+  },
+  {
+   "name": "a large float (exponent form)",
+   "value": 1e+21,
+   "canonical": "1e21",
+   "sha256": "e607aaf738f67fc2879a2a52672c599e9337b4cacd57582c6d3cf9526f5aa222"
+  },
+  {
+   "name": "a float just above the band",
+   "value": 1e+16,
+   "canonical": "1e16",
+   "sha256": "9b99f7098fef3c4283213de65c4dcf4949b1e5c8220cd58fd5207e72489a75e7"
+  },
+  {
+   "name": "a shortest-round-trip float",
+   "value": 333333333.3333333,
+   "canonical": "333333333.3333333",
+   "sha256": "6bd9be1c141028789cc35db62f1b43e80d5d4ee24d6d542e775deb16799ff4c7"
+  },
+  {
+   "name": "a negative float",
+   "value": -1.5,
+   "canonical": "-1.5",
+   "sha256": "37c2b212b94e5372b33df924ea2a91182d90c237d0bf942c1768e794ebef2376"
+  },
+  {
+   "name": "keys sorted, not insertion order",
+   "value": {
+    "b": 1,
+    "a": 2,
+    "C": 3
+   },
+   "canonical": "{\"C\":3,\"a\":2,\"b\":1}",
+   "sha256": "27e01c26743085bff8e4a98d76dca93ebdb6c805f8136fae1216ee257d33f5c5"
+  },
+  {
+   "name": "the astral-plane keys (UTF-8 byte order)",
+   "value": {
+    "𐀀": "A",
+    "": "B"
+   },
+   "canonical": "{\"\":\"B\",\"𐀀\":\"A\"}",
+   "sha256": "1cff69af161901826d240a00bfed931602e42739a48dea5a6d428c03f3ed0713"
+  },
+  {
+   "name": "nested objects sort at every level",
+   "value": {
+    "z": {
+     "y": 1,
+     "x": 2
+    },
+    "a": [
+     3,
+     {
+      "q": 1,
+      "p": 2
+     }
+    ]
+   },
+   "canonical": "{\"a\":[3,{\"p\":2,\"q\":1}],\"z\":{\"x\":2,\"y\":1}}",
+   "sha256": "268bef7b36771839269ae4353bbcf2239a0251de91e495b157f01acf9a4b4b65"
+  },
+  {
+   "name": "null, true and false",
+   "value": [
+    null,
+    true,
+    false
+   ],
+   "canonical": "[null,true,false]",
+   "sha256": "37257214f22b92121c5ff4d7e29ed2d31b3f1129ee698e96e581ec05cb2e3cf7"
+  },
+  {
+   "name": "an empty object and an empty array",
+   "value": [
+    {},
+    []
+   ],
+   "canonical": "[{},[]]",
+   "sha256": "7a38905296006c575d7d45d1d881690a3ee87361ed67ce64642e2504482da818"
+  },
+  {
+   "name": "strings escape the standard way",
+   "value": [
+    "quote\" back\\ tab\t newline\n"
+   ],
+   "canonical": "[\"quote\\\" back\\\\ tab\\t newline\\n\"]",
+   "sha256": "c8774489c67b5436017a77b7a9c3ed6e3e7c7a6cc5af8bc34236b1967d672f26"
+  },
+  {
+   "name": "non-ASCII is NOT escaped",
+   "value": "café 中文",
+   "canonical": "\"café 中文\"",
+   "sha256": "6647dd553b4e91e91885bbd757bd3372f8240be4a787331df8e5aded8b945030"
+  },
+  {
+   "name": "a big integer stays exact",
+   "value": 9007199254740993,
+   "canonical": "9007199254740993",
+   "sha256": "a1c367c29158357e62a3ff5d3e800fb7698a22396439dbc0a9d4929322afd35d"
+  },
+  {
+   "name": "a big integer and its float neighbour are different values",
+   "value": [
+    9007199254740993,
+    9007199254740992.0
+   ],
+   "canonical": "[9007199254740993,9007199254740992.0]",
+   "sha256": "e37ee44a220325badd9a73c6570cc776f139f936381ab60e180976f0c97d09d2"
+  },
+  {
+   "name": "deep nesting",
+   "value": {
+    "a": {
+     "b": {
+      "c": {
+       "d": [
+        1,
+        2,
+        {
+         "e": 3.5
+        }
+       ]
+      }
+     }
+    }
+   },
+   "canonical": "{\"a\":{\"b\":{\"c\":{\"d\":[1,2,{\"e\":3.5}]}}}}",
+   "sha256": "9e97aa97979a074c4f2ac8e1cedafcfc5de66543cb14fccad7f043c73bd037c4"
+  }
+ ]
+}
