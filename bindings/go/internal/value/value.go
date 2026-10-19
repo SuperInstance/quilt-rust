@@ -222,35 +222,76 @@ func writeCanonical(v Value, sb *strings.Builder) {
 	}
 }
 
-// CanonicalFloat renders an f64 in shortest-round-trip form with ryū-style
-// spelling: a decimal point or exponent is always present ("40.0", "2.5",
-// "1e20"), and exponents carry no "+" and no leading zeros ("1e-7").
+// CanonicalFloat renders an f64 in shortest-round-trip form with ryū's
+// spelling, as pinned by docs/cell-ledger.md §4 ("floats as Rust's
+// shortest-round-trip decimal (serde_json / ryū semantics)").
 //
-// Known hazard (mirrors docs/cell-ledger.md's JS warning): Go's 'g' format
-// switches to exponent notation at |exp10| >= 21 while ryū uses its own
-// thresholds, so extreme magnitudes may spell differently from the Rust
-// tier. Golden vectors keep values in the plain-decimal range.
+// THE DIGITS WERE NEVER THE HARD PART. Go's strconv 'f' and 'e' formats,
+// both at precision -1, produce the SAME shortest-round-trip digit string.
+// They differ only in which NOTATION they wrap it in, and that is a
+// formatting decision, not a numeric one. So ask strconv for the digits
+// twice, decide the notation here, and keep the one we want. No ryu
+// re-implementation is needed, and none is attempted.
+//
+// THE RULE, measured against the Rust (the normative port):
+//
+//	plain decimals iff -5 < kk <= 16, where kk = floor(log10(|f|)) + 1
+//	otherwise exponent form, ALWAYS with a signed exponent (1e+16)
+//
+// This replaces strconv.FormatFloat(f, 'g', -1, 64) plus hand-rolled
+// exponent cleanup, which had THREE divergences -- all three caught by
+// compat/canonical-vectors.json on its first run against the Rust:
+//
+//   - 'g' at precision -1 cuts to exponent form as soon as the exponent
+//     reaches six significant digits, so it wrote 1e6,
+//     3.333333333333333e8 and 1e15 where the Rust writes 1000000.0,
+//     333333333.3333333 and 1000000000000000.0. That band is
+//     [1e6, 1e17) and it holds every ordinary large number.
+//   - 'g' also cuts to exponent form one decade too EARLY on the low
+//     side: 1e-5 where the Rust writes 0.00001.
+//   - the old cleanup stripped the '+' from a positive exponent
+//     (1e+16 -> 1e16), which the Rust does not do.
 func CanonicalFloat(f float64) string {
 	if math.IsNaN(f) || math.IsInf(f, 0) {
 		return "null" // serde_json cannot represent these; pinned as null
 	}
-	s := strconv.FormatFloat(f, 'g', -1, 64)
-	if i := strings.IndexAny(s, "eE"); i >= 0 {
-		mant, exp := s[:i], s[i+1:]
-		neg := strings.HasPrefix(exp, "-")
-		exp = strings.TrimLeft(strings.TrimPrefix(strings.TrimPrefix(exp, "+"), "-"), "0")
-		if exp == "" {
-			exp = "0"
+	// The 'e' form is a mantissa in [1,10) times 10^exp, so exp == kk-1.
+	e := strconv.FormatFloat(f, 'e', -1, 64)
+	i := strings.IndexByte(e, 'e')
+	if i >= 0 {
+		if exp, err := strconv.Atoi(e[i+1:]); err == nil {
+			if kk := exp + 1; kk <= -5 || kk > 16 {
+				return exponentFloat(e[:i], e[i+1:])
+			}
 		}
-		if neg {
-			exp = "-" + exp
-		}
-		return mant + "e" + exp
 	}
+	return plainFloat(f)
+}
+
+// plainFloat renders f in plain decimal notation at the shortest
+// round-trip precision, always carrying a '.', so the float marker --
+// and with it the int/float distinction the chain depends on -- survives.
+func plainFloat(f float64) string {
+	s := strconv.FormatFloat(f, 'f', -1, 64)
 	if !strings.Contains(s, ".") {
 		s += ".0"
 	}
 	return s
+}
+
+// exponentFloat re-spells strconv's 'e' form in ryū's exponent spelling:
+// the sign is ALWAYS written (1e+16, 1e-7), and Go's two-digit exponent
+// padding is removed (strconv writes 1e-07 where ryū writes 1e-7).
+func exponentFloat(mantissa, exp string) string {
+	sign := "+"
+	if strings.HasPrefix(exp, "-") {
+		sign = "-"
+	}
+	digits := strings.TrimLeft(strings.TrimPrefix(strings.TrimPrefix(exp, "+"), "-"), "0")
+	if digits == "" {
+		digits = "0"
+	}
+	return mantissa + "e" + sign + digits
 }
 
 // Display renders a value for string interpolation / concatenation in// formulas (JS-like): floats that are integral render without a point.

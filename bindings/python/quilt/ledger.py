@@ -66,27 +66,56 @@ def sha256_hex(data: bytes) -> str:
 
 
 def fmt_float(x: float) -> str:
-    """Shortest-round-trip float rendering, serde_json/ryū style.
+    """Shortest-round-trip float rendering, serde_json/ryu style.
 
-    Python `repr` already yields the shortest round-trip decimal; we
-    normalize the exponent form to ryū's (`1e-05` → `1e-5`,
-    `1e+16` → `1e16`) so the canonical bytes match Rust.
+    Python's `repr` already yields the shortest round-trip decimal, so
+    the DIGITS are never in question here -- only the SPELLING is, and it
+    differs from ryū in exactly two places. Write
+    `kk = floor(log10(|x|)) + 1`, so that `10**(kk-1) <= |x| < 10**kk`:
+
+    1. ryū writes plain decimals iff `-5 < kk <= 16`. `repr` switches to
+       exponent form one decade too early on the low side, so `repr(1e-5)`
+       is `1e-05` where the Rust writes `0.00001`.
+    2. ryū ALWAYS signs the exponent -- `1e+16`, `1e+100`. `repr` spells a
+       positive exponent with no `+`, so `repr(1e16)` is `1e+16` where the
+       Rust writes `1e+16`.
+
+    Both were wrong in the first revision of compat/canonical-vectors.json,
+    which this port generated and therefore agreed with by construction.
     """
     if not math.isfinite(x):
         # serde_json cannot place non-finite numbers in a JSON Number;
         # they degrade to null rather than corrupt the chain.
         return "null"
     s = repr(float(x))
-    if "e" in s or "E" in s:
-        mant, _e, exp = s.lower().partition("e")
-        sign = ""
-        if exp.startswith("-"):
-            sign, exp = "-", exp[1:]
-        elif exp.startswith("+"):
-            exp = exp[1:]
-        exp = exp.lstrip("0") or "0"
-        s = f"{mant}e{sign}{exp}"
-    return s
+    if "e" not in s and "E" not in s:
+        return s
+    mantissa, _, exponent = s.lower().partition("e")
+    exp = int(exponent)
+    if not (-5 < exp + 1 <= 16):
+        return f"{mantissa}e{'-' if exp < 0 else '+'}{abs(exp)}"
+    return _plain_from_mantissa(mantissa, exp)
+
+
+def _plain_from_mantissa(mantissa: str, exp: int) -> str:
+    """Re-spell a shortest-round-trip mantissa in plain decimal notation.
+
+    `mantissa` is the shortest digit string `repr` produced (`"1"`,
+    `"1.2"`, `"9.999999"`) and `exp` its base-10 exponent, so the value is
+    `mantissa * 10**exp` and the decimal point falls after `exp + 1 == kk`
+    digits. Only reached for `-5 < kk <= 16`, which for `repr` means
+    `kk == -4` exactly.
+    """
+    negative = mantissa.startswith("-")
+    digits = mantissa.lstrip("-").replace(".", "")
+    point = exp + 1
+    if point <= 0:
+        body = "0." + "0" * (-point) + digits
+    elif point >= len(digits):
+        body = digits + "0" * (point - len(digits)) + ".0"
+    else:
+        body = digits[:point] + "." + digits[point:]
+    return ("-" if negative else "") + body
 
 
 def canonical_json(v) -> str:

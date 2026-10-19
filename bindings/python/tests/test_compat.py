@@ -244,8 +244,27 @@ class CanonicalSerialization(unittest.TestCase):
         self.assertEqual(canonical_json(2.5), "2.5")
 
     def test_float_exponents_normalized_to_ryu(self):
-        self.assertEqual(canonical_json(1e-5), "1e-5")   # not 1e-05
-        self.assertEqual(canonical_json(1e16), "1e16")   # not 1e+16
+        # The Rust is the normative port (docs/cell-ledger.md §4) and it
+        # signs the exponent. This assertion used to read
+        # `canonical_json(1e16) == "1e16"  # not 1e+16`, which recorded the
+        # Python tier's own spelling as though it were ryū's, and let the
+        # same file generate compat/canonical-vectors.json.
+        self.assertEqual(canonical_json(1e16), "1e+16")
+        self.assertEqual(canonical_json(1e21), "1e+21")
+        self.assertEqual(canonical_json(1e-7), "1e-7")
+
+    def test_float_plain_decimal_band_matches_ryu(self):
+        # ryū writes plain decimals iff -5 < kk <= 16, where
+        # kk = floor(log10(|v|)) + 1. Python's repr cut to exponent form
+        # one decade too early, so this band was wrong and nothing caught
+        # it: the old vector file sat entirely outside it.
+        self.assertEqual(canonical_json(1e-5), "0.00001")   # kk == -4
+        self.assertEqual(canonical_json(9.999999e-5), "0.00009999999")
+        self.assertEqual(canonical_json(-1e-5), "-0.00001")
+        # ...and the two neighbours of the band, which must NOT move.
+        self.assertEqual(canonical_json(9.99999e-6), "9.99999e-6")  # kk == -5
+        self.assertEqual(canonical_json(1e-4), "0.0001")            # kk == -3
+        self.assertEqual(canonical_json(1e15), "1000000000000000.0")  # kk == 16
 
     def test_insertion_order_irrelevant(self):
         self.assertEqual(

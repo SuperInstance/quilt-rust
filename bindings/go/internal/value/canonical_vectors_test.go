@@ -45,9 +45,9 @@ import (
 const vectorsPath = "../../../../compat/canonical-vectors.json"
 
 type vectorFile struct {
-	Spec     string `json:"spec"`
-	CaseCount int   `json:"case_count"`
-	Cases    []struct {
+	Spec      string `json:"spec"`
+	CaseCount int    `json:"case_count"`
+	Cases     []struct {
 		Name      string          `json:"name"`
 		Value     json.RawMessage `json:"value"`
 		Canonical string          `json:"canonical"`
