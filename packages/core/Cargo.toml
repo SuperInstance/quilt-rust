@@ -10,7 +10,7 @@ description = "Reactive cell runtime — the engine that powers every other surf
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yml = { workspace = true }
+serde_norway = { workspace = true }
 
 tokio = { workspace = true }
 async-trait = { workspace = true }

@@ -177,8 +177,8 @@ impl From<reqwest::Error> for Error {
     }
 }
 
-impl From<serde_yml::Error> for Error {
-    fn from(err: serde_yml::Error) -> Self {
+impl From<serde_norway::Error> for Error {
+    fn from(err: serde_norway::Error) -> Self {
         Self::Yaml(err.to_string())
     }
 }
