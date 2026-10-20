@@ -12,9 +12,12 @@
 //!
 //! ## Depends on
 //!
-//! - `serde_yml` — YAML deserialization. We chose this over `serde_yaml`
-//!   because it has fewer maintenance issues and tracks serde
-//!   releases closely.
+//! - `serde_norway` — YAML deserialization. Both `serde_yaml` (deprecated,
+//!   0.9.34+deprecated) and `serde_yml` (deprecated) are unmaintained, and
+//!   `serde_yml` additionally drags in `noyalib`, which carries
+//!   RUSTSEC-2026-0333 ("Resource budgets not enforced on the typed
+//!   deserialization path"). `serde_norway` is the maintained fork of
+//!   `serde_yaml` with no such advisory. See `docs/DEPENDENCY-SECURITY.md`.
 //! - `crate::types` — `CellDef`, `CellKind`, `SheetDef`, etc.
 //! - `crate::error` — `Error`, `Result`.
 //!
@@ -65,7 +68,7 @@ use crate::types::{CellDef, CellKind, RouteTarget, RouterRule, SheetDef};
 /// Validates the sheet: checks for duplicate ids, kind-specific
 /// required fields, and (basic) well-formedness.
 pub fn parse_sheet(source: &str) -> Result<SheetDef> {
-    let sheet: SheetDef = serde_yml::from_str(source).map_err(|e| Error::Yaml(e.to_string()))?;
+    let sheet: SheetDef = serde_norway::from_str(source).map_err(|e| Error::Yaml(e.to_string()))?;
     validate_sheet(&sheet)?;
     Ok(sheet)
 }
@@ -81,7 +84,7 @@ pub fn parse_sheet_file(path: impl AsRef<Path>) -> Result<SheetDef> {
 /// parsing the output and re-serializing produces an equivalent sheet
 /// (modulo formatting choices).
 pub fn serialize_sheet(sheet: &SheetDef) -> Result<String> {
-    serde_yml::to_string(sheet).map_err(|e| Error::Yaml(e.to_string()))
+    serde_norway::to_string(sheet).map_err(|e| Error::Yaml(e.to_string()))
 }
 
 /// Write a sheet to a YAML file.

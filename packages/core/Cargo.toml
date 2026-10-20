@@ -10,7 +10,7 @@ description = "Reactive cell runtime — the engine that powers every other surf
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yml = { workspace = true }
+serde_norway = { workspace = true }
 
 tokio = { workspace = true }
 async-trait = { workspace = true }
@@ -38,3 +38,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 [[test]]
 name = "quilt_compat_conformance"
 path = "../../compat/conformance_test.rs"
+
+[[test]]
+name = "quilt_canonical_vectors"
+path = "../../compat/canonical_vectors_test.rs"

@@ -12,7 +12,7 @@
 //! ## Depends on
 //!
 //! - `serde`, `serde_json` — for `CellDef` parsing and runtime values
-//! - `serde_yml` — YAML loader (the canonical sheet format)
+//! - `serde_norway` — YAML loader (the canonical sheet format)
 //! - `tokio` — async runtime
 //! - `rhai` — embedded scripting for `program` and `formula` cells
 //! - `reqwest` — HTTP transport for `api` cells
